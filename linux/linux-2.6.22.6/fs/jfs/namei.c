@@ -111,7 +111,7 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	if (rc)
 		goto out3;
 
-	rc = jfs_init_security(tid, ip, dip);
+	rc = jfs_init_security(tid, ip, dip, NULL);
 	if (rc) {
 		txAbort(tid, 0);
 		goto out3;
@@ -199,7 +199,7 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
  * note:
  * EACCESS: user needs search+write permission on the parent directory
  */
-static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
+static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode, void *label)
 {
 	int rc = 0;
 	tid_t tid;		/* transaction id */
@@ -245,7 +245,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	if (rc)
 		goto out3;
 
-	rc = jfs_init_security(tid, ip, dip);
+	rc = jfs_init_security(tid, ip, dip, label);
 	if (rc) {
 		txAbort(tid, 0);
 		goto out3;
@@ -916,7 +916,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	mutex_lock_nested(&JFS_IP(dip)->commit_mutex, COMMIT_MUTEX_PARENT);
 	mutex_lock_nested(&JFS_IP(ip)->commit_mutex, COMMIT_MUTEX_CHILD);
 
-	rc = jfs_init_security(tid, ip, dip);
+	rc = jfs_init_security(tid, ip, dip, NULL);
 	if (rc)
 		goto out3;
 
@@ -1336,7 +1336,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
  * FUNCTION:    Create a special file (device)
  */
 static int jfs_mknod(struct inode *dir, struct dentry *dentry,
-		int mode, dev_t rdev)
+		     int mode, dev_t rdev, void *label)
 {
 	struct jfs_inode_info *jfs_ip;
 	struct btstack btstack;
@@ -1372,7 +1372,7 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (rc)
 		goto out3;
 
-	rc = jfs_init_security(tid, ip, dir);
+	rc = jfs_init_security(tid, ip, dir, NULL);
 	if (rc) {
 		txAbort(tid, 0);
 		goto out3;

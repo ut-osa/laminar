@@ -323,3 +323,18 @@ ENTRY(sys_call_table)
 	.long sys_signalfd
 	.long sys_timerfd
 	.long sys_eventfd
+	.long sys_ni_syscall
+	.long sys_ni_syscall		/* 325 */
+	.long sys_ni_syscall
+	.long sys_ni_syscall
+ 	.long sys_alloc_label
+ 	.long sys_set_task_label
+ 	.long sys_mkdir_labeled         /* 330 */
+ 	.long sys_drop_capabilities
+ 	.long sys_create_labeled
+ 	.long sys_set_file_label
+ 	.long sys_replace_label_tcb
+ 	.long sys_laminar_pipe          /* 335 */
+ 	.long sys_resume_capabilities
+ 	.long sys_send_capabilities
+	

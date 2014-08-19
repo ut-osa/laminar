@@ -89,7 +89,7 @@ struct inode *ramfs_get_inode(struct super_block *sb, int mode, dev_t dev)
  */
 /* SMP-safe */
 static int
-ramfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+ramfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev, void *label)
 {
 	struct inode * inode = ramfs_get_inode(dir->i_sb, mode, dev);
 	int error = -ENOSPC;
@@ -108,17 +108,17 @@ ramfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	return error;
 }
 
-static int ramfs_mkdir(struct inode * dir, struct dentry * dentry, int mode)
+static int ramfs_mkdir(struct inode * dir, struct dentry * dentry, int mode, void *label)
 {
-	int retval = ramfs_mknod(dir, dentry, mode | S_IFDIR, 0);
+	int retval = ramfs_mknod(dir, dentry, mode | S_IFDIR, 0, label);
 	if (!retval)
 		inc_nlink(dir);
 	return retval;
 }
 
-static int ramfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd)
+static int ramfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd, void *label)
 {
-	return ramfs_mknod(dir, dentry, mode | S_IFREG, 0);
+	return ramfs_mknod(dir, dentry, mode | S_IFREG, 0, label);
 }
 
 static int ramfs_symlink(struct inode * dir, struct dentry *dentry, const char * symname)

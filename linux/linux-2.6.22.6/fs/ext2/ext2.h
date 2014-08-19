@@ -116,7 +116,7 @@ extern void ext2_set_link(struct inode *, struct ext2_dir_entry_2 *, struct page
 extern int ext2_sync_file (struct file *, struct dentry *, int);
 
 /* ialloc.c */
-extern struct inode * ext2_new_inode (struct inode *, int);
+extern struct inode * ext2_new_inode (struct inode *, int, void*);
 extern void ext2_free_inode (struct inode *);
 extern unsigned long ext2_count_free_inodes (struct super_block *);
 extern void ext2_check_inodes_bitmap (struct super_block *);

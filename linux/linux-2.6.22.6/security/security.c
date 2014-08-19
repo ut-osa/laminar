@@ -172,6 +172,102 @@ int mod_unreg_security(const char *name, struct security_operations *ops)
 	return security_ops->unregister_security(name, ops);
 }
 
+/**
+ * sys_alloc_label
+ *
+ * Allocate a new label, if the LSM supports it.  
+ *
+ * XXX: This may be able to be merged with the existing capability
+ * infratstructure.  Until I understand it better, use our own
+ * syscall.
+ */
+asmlinkage long sys_alloc_label(int type, int region){
+
+	if(security_ops->alloc_label)
+		return security_ops->alloc_label(current, type, region);
+
+	return -ENOSYS;
+}
+
+
+/**
+ * sys_set_task_label
+ *
+ * Sets the label on the current task, if allowed and supported
+ *
+ */
+asmlinkage long sys_set_task_label(label_t label, int op_type, int label_type, void *bulk_label){
+
+	if(security_ops->set_task_label)
+		return security_ops->set_task_label(current, label, op_type, label_type, bulk_label);
+
+	return -ENOSYS;
+}
+
+/** 
+ * sys_drop_capabilities
+ *
+ * Drop the capabilities associated with a task, either permanently or temporarily
+ *
+ */
+
+asmlinkage long sys_drop_capabilities(void __user *buf, unsigned int bufsize, int type, int flag){
+
+	if(security_ops->drop_capabilities)
+		return security_ops->drop_capabilities(buf, bufsize, type, flag);
+
+	return -ENOSYS;
+}
+
+/** 
+ * sys_resume_capabilities
+ *
+ * Resume suspended capabilities associated with a task
+ *
+ */
+
+asmlinkage long sys_resume_capabilities(void __user *buf, unsigned int bufsize, int type){
+
+	if(security_ops->resume_capabilities)
+		return security_ops->resume_capabilities(buf, bufsize, type);
+
+	return -ENOSYS;
+}
+
+/** 
+ * sys_send_capabilities
+ *
+ * Send some caps to a pid.
+ *
+ */
+
+asmlinkage long sys_send_capabilities(pid_t pid, void __user *buf, unsigned int bufsize, int type){
+
+	if(security_ops->send_capabilities)
+		return security_ops->send_capabilities(pid, buf, bufsize, type);
+
+	return -ENOSYS;
+}
+
+
+
+/** 
+ * sys_replace_capabilities
+ *
+ * Replace the capabilities associated with a task
+ *
+ */
+
+asmlinkage long sys_replace_label_tcb(void __user *buf){
+
+	if(security_ops->replace_label_tcb)
+		return security_ops->replace_label_tcb(buf);
+
+	return -ENOSYS;
+}
+
+
+
 EXPORT_SYMBOL_GPL(register_security);
 EXPORT_SYMBOL_GPL(unregister_security);
 EXPORT_SYMBOL_GPL(mod_reg_security);

@@ -817,7 +817,7 @@ out:
 	return err;
 }
 
-static int vfat_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int vfat_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode;

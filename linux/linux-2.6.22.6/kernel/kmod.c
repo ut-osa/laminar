@@ -325,7 +325,7 @@ int call_usermodehelper_pipe(char *path, char **argv, char **envp,
 	if (path[0] == '\0')
 		return 0;
 
-	f = create_write_pipe();
+	f = create_write_pipe(NULL);
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 	*filp = f;

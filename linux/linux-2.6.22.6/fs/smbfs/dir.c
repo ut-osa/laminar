@@ -27,12 +27,12 @@ static int smb_dir_open(struct inode *, struct file *);
 
 static struct dentry *smb_lookup(struct inode *, struct dentry *, struct nameidata *);
 static int smb_create(struct inode *, struct dentry *, int, struct nameidata *);
-static int smb_mkdir(struct inode *, struct dentry *, int);
+static int smb_mkdir(struct inode *, struct dentry *, int, void *);
 static int smb_rmdir(struct inode *, struct dentry *);
 static int smb_unlink(struct inode *, struct dentry *);
 static int smb_rename(struct inode *, struct dentry *,
 		      struct inode *, struct dentry *);
-static int smb_make_node(struct inode *,struct dentry *,int,dev_t);
+static int smb_make_node(struct inode *,struct dentry *,int,dev_t, void *);
 static int smb_link(struct dentry *, struct inode *, struct dentry *);
 
 const struct file_operations smb_dir_operations =
@@ -550,7 +550,7 @@ smb_create(struct inode *dir, struct dentry *dentry, int mode,
 
 /* N.B. How should the mode argument be used? */
 static int
-smb_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+smb_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	struct smb_sb_info *server = server_from_dentry(dentry);
 	int error;
@@ -660,7 +660,7 @@ out:
  * matches the connection credentials (and we don't know which those are ...)
  */
 static int
-smb_make_node(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+smb_make_node(struct inode *dir, struct dentry *dentry, int mode, dev_t dev, void *label)
 {
 	int error;
 	struct iattr attr;

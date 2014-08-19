@@ -259,7 +259,7 @@ static void dummy_inode_free_security (struct inode *inode)
 }
 
 static int dummy_inode_init_security (struct inode *inode, struct inode *dir,
-				      char **name, void **value, size_t *len)
+				      char **name, void **value, size_t *len, void *label)
 {
 	return -EOPNOTSUPP;
 }
@@ -401,6 +401,12 @@ static int dummy_file_permission (struct file *file, int mask)
 {
 	return 0;
 }
+
+static void dummy_file_rw_release (struct file *file)
+{
+	return;
+}
+
 
 static int dummy_file_alloc_security (struct file *file)
 {
@@ -945,6 +951,12 @@ static inline int dummy_key_permission(key_ref_t key_ref,
 }
 #endif /* CONFIG_KEYS */
 
+
+static inline void *dummy_copy_user_label(const char __user *label)
+{
+	return NULL;
+}
+
 struct security_operations dummy_security_ops;
 
 #define set_to_dummy_if_null(ops, function)				\
@@ -1127,6 +1139,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, key_free);
 	set_to_dummy_if_null(ops, key_permission);
 #endif	/* CONFIG_KEYS */
-
+	set_to_dummy_if_null(ops, copy_user_label);
+	set_to_dummy_if_null(ops, file_rw_release);
 }
 

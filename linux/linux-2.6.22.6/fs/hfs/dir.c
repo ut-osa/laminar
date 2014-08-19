@@ -207,7 +207,7 @@ static int hfs_create(struct inode *dir, struct dentry *dentry, int mode,
  * in a directory, given the inode for the parent directory and the
  * name (and its length) of the new directory.
  */
-static int hfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int hfs_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	struct inode *inode;
 	int res;

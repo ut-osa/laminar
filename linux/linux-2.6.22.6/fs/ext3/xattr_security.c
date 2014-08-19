@@ -48,14 +48,14 @@ ext3_xattr_security_set(struct inode *inode, const char *name,
 }
 
 int
-ext3_init_security(handle_t *handle, struct inode *inode, struct inode *dir)
+ext3_init_security(handle_t *handle, struct inode *inode, struct inode *dir, void *label)
 {
 	int err;
 	size_t len;
 	void *value;
 	char *name;
 
-	err = security_inode_init_security(inode, dir, &name, &value, &len);
+	err = security_inode_init_security(inode, dir, &name, &value, &len, label);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;

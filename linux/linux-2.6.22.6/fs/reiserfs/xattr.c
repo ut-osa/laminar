@@ -81,7 +81,7 @@ static struct dentry *get_xa_root(struct super_block *sb, int flags)
 		int err = -ENODATA;
 		if (flags == 0 || flags & XATTR_CREATE)
 			err = privroot->d_inode->i_op->mkdir(privroot->d_inode,
-			                                     xaroot, 0700);
+			                                     xaroot, 0700, NULL);
 		if (err) {
 			dput(xaroot);
 			xaroot = ERR_PTR(err);
@@ -126,7 +126,7 @@ static struct dentry *open_xa_dir(const struct inode *inode, int flags)
 			 * to protect against that */
 			err =
 			    xaroot->d_inode->i_op->mkdir(xaroot->d_inode, xadir,
-							 0700);
+							 0700, NULL);
 			if (err) {
 				dput(xaroot);
 				dput(xadir);
@@ -1218,7 +1218,7 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 			if (!(mount_flags & MS_RDONLY) && !dentry->d_inode) {
 				struct inode *inode = dentry->d_parent->d_inode;
 				mutex_lock(&inode->i_mutex);
-				err = inode->i_op->mkdir(inode, dentry, 0700);
+				err = inode->i_op->mkdir(inode, dentry, 0700, NULL);
 				mutex_unlock(&inode->i_mutex);
 				if (err) {
 					dput(dentry);

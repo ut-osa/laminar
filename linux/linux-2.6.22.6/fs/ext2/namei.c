@@ -103,9 +103,9 @@ struct dentry *ext2_get_parent(struct dentry *child)
  * If the create succeeds, we fill in the inode information
  * with d_instantiate(). 
  */
-static int ext2_create (struct inode * dir, struct dentry * dentry, int mode, struct nameidata *nd)
+static int ext2_create (struct inode * dir, struct dentry * dentry, int mode, struct nameidata *nd, void *label)
 {
-	struct inode * inode = ext2_new_inode (dir, mode);
+	struct inode * inode = ext2_new_inode (dir, mode, label);
 	int err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 		inode->i_op = &ext2_file_inode_operations;
@@ -125,7 +125,7 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, int mode, st
 	return err;
 }
 
-static int ext2_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_t rdev)
+static int ext2_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_t rdev, void *label)
 {
 	struct inode * inode;
 	int err;
@@ -133,7 +133,7 @@ static int ext2_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
-	inode = ext2_new_inode (dir, mode);
+	inode = ext2_new_inode (dir, mode, label);
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 		init_special_inode(inode, inode->i_mode, rdev);
@@ -157,7 +157,7 @@ static int ext2_symlink (struct inode * dir, struct dentry * dentry,
 	if (l > sb->s_blocksize)
 		goto out;
 
-	inode = ext2_new_inode (dir, S_IFLNK | S_IRWXUGO);
+	inode = ext2_new_inode (dir, S_IFLNK | S_IRWXUGO, NULL);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out;
@@ -205,7 +205,7 @@ static int ext2_link (struct dentry * old_dentry, struct inode * dir,
 	return ext2_add_nondir(dentry, inode);
 }
 
-static int ext2_mkdir(struct inode * dir, struct dentry * dentry, int mode)
+static int ext2_mkdir(struct inode * dir, struct dentry * dentry, int mode, void *label)
 {
 	struct inode * inode;
 	int err = -EMLINK;
@@ -215,7 +215,7 @@ static int ext2_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 
 	inode_inc_link_count(dir);
 
-	inode = ext2_new_inode (dir, S_IFDIR | mode);
+	inode = ext2_new_inode (dir, S_IFDIR | mode, label);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out_dir;

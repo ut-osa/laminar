@@ -22,6 +22,8 @@ struct pipe_inode_info {
 	struct page *tmp_page;
 	unsigned int readers;
 	unsigned int writers;
+	unsigned int real_readers;
+	unsigned int real_writers;
 	unsigned int waiting_writers;
 	unsigned int r_counter;
 	unsigned int w_counter;

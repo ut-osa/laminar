@@ -1510,7 +1510,7 @@ void unlock_rename(struct dentry *p1, struct dentry *p2)
 }
 
 int vfs_create(struct inode *dir, struct dentry *dentry, int mode,
-		struct nameidata *nd)
+	       struct nameidata *nd, void *label)
 {
 	int error = may_create(dir, dentry, nd);
 
@@ -1525,7 +1525,7 @@ int vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	if (error)
 		return error;
 	DQUOT_INIT(dir);
-	error = dir->i_op->create(dir, dentry, mode, nd);
+	error = dir->i_op->create(dir, dentry, mode, nd, label);
 	if (!error)
 		fsnotify_create(dir, dentry);
 	return error;
@@ -1618,7 +1618,7 @@ static int open_namei_create(struct nameidata *nd, struct path *path,
 
 	if (!IS_POSIXACL(dir->d_inode))
 		mode &= ~current->fs->umask;
-	error = vfs_create(dir->d_inode, path->dentry, mode, nd);
+	error = vfs_create(dir->d_inode, path->dentry, mode, nd, NULL);
 	mutex_unlock(&dir->d_inode->i_mutex);
 	dput(nd->dentry);
 	nd->dentry = path->dentry;
@@ -1854,7 +1854,7 @@ fail:
 }
 EXPORT_SYMBOL_GPL(lookup_create);
 
-int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev, void *label)
 {
 	int error = may_create(dir, dentry, NULL);
 
@@ -1872,7 +1872,7 @@ int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 		return error;
 
 	DQUOT_INIT(dir);
-	error = dir->i_op->mknod(dir, dentry, mode, dev);
+	error = dir->i_op->mknod(dir, dentry, mode, dev, label);
 	if (!error)
 		fsnotify_create(dir, dentry);
 	return error;
@@ -1903,14 +1903,14 @@ asmlinkage long sys_mknodat(int dfd, const char __user *filename, int mode,
 	if (!IS_ERR(dentry)) {
 		switch (mode & S_IFMT) {
 		case 0: case S_IFREG:
-			error = vfs_create(nd.dentry->d_inode,dentry,mode,&nd);
+			error = vfs_create(nd.dentry->d_inode,dentry,mode,&nd, NULL);
 			break;
 		case S_IFCHR: case S_IFBLK:
 			error = vfs_mknod(nd.dentry->d_inode,dentry,mode,
-					new_decode_dev(dev));
+					  new_decode_dev(dev), NULL);
 			break;
 		case S_IFIFO: case S_IFSOCK:
-			error = vfs_mknod(nd.dentry->d_inode,dentry,mode,0);
+			error = vfs_mknod(nd.dentry->d_inode,dentry,mode,0, NULL);
 			break;
 		case S_IFDIR:
 			error = -EPERM;
@@ -1933,7 +1933,7 @@ asmlinkage long sys_mknod(const char __user *filename, int mode, unsigned dev)
 	return sys_mknodat(AT_FDCWD, filename, mode, dev);
 }
 
-int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	int error = may_create(dir, dentry, NULL);
 
@@ -1949,18 +1949,20 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		return error;
 
 	DQUOT_INIT(dir);
-	error = dir->i_op->mkdir(dir, dentry, mode);
+	error = dir->i_op->mkdir(dir, dentry, mode, label);
 	if (!error)
 		fsnotify_mkdir(dir, dentry);
 	return error;
 }
 
-asmlinkage long sys_mkdirat(int dfd, const char __user *pathname, int mode)
+static long __sys_mkdirat(int dfd, const char __user *pathname, int mode, const char __user *label)
 {
 	int error = 0;
 	char * tmp;
 	struct dentry *dentry;
 	struct nameidata nd;
+
+	void *lbl = security_copy_user_label(label);
 
 	tmp = getname(pathname);
 	error = PTR_ERR(tmp);
@@ -1977,7 +1979,7 @@ asmlinkage long sys_mkdirat(int dfd, const char __user *pathname, int mode)
 
 	if (!IS_POSIXACL(nd.dentry->d_inode))
 		mode &= ~current->fs->umask;
-	error = vfs_mkdir(nd.dentry->d_inode, dentry, mode);
+	error = vfs_mkdir(nd.dentry->d_inode, dentry, mode, lbl);
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&nd.dentry->d_inode->i_mutex);
@@ -1985,12 +1987,73 @@ out_unlock:
 out:
 	putname(tmp);
 out_err:
+	if(lbl)
+		kfree(lbl);
+
 	return error;
+}
+
+asmlinkage long sys_mkdirat(int dfd, const char __user *pathname, int mode)
+{
+	return __sys_mkdirat(dfd, pathname, mode, NULL);
 }
 
 asmlinkage long sys_mkdir(const char __user *pathname, int mode)
 {
-	return sys_mkdirat(AT_FDCWD, pathname, mode);
+	return __sys_mkdirat(AT_FDCWD, pathname, mode, NULL);
+}
+
+asmlinkage long sys_mkdir_labeled(const char __user *pathname, int mode, const char __user * label)
+{
+	return __sys_mkdirat(AT_FDCWD, pathname, mode, label);
+}
+
+asmlinkage long sys_create_labeled(const char __user *pathname, int mode, const char __user * label)
+{
+	int error = 0;
+	char * tmp;
+	struct dentry *dentry;
+	struct inode *inode;
+	struct nameidata nd;
+
+	void *lbl = security_copy_user_label(label);
+
+	tmp = getname(pathname);
+	error = PTR_ERR(tmp);
+	if (IS_ERR(tmp))
+		goto out_err;
+
+	error = do_path_lookup(AT_FDCWD, tmp, LOOKUP_PARENT, &nd);
+	if (error)
+		goto out;
+
+	inode = nd.dentry->d_inode;
+	if(unlikely(IS_ERR(inode))){
+		error = PTR_ERR(inode);
+		goto out;
+	}
+	dentry = lookup_create(&nd, 0);
+	error = PTR_ERR(dentry);
+	if (IS_ERR(dentry))
+		goto out_unlock;
+
+	if (!IS_POSIXACL(inode))
+		mode &= ~current->fs->umask;
+
+	error = vfs_create(nd.dentry->d_inode, dentry, mode, &nd, lbl);
+	
+
+	dput(dentry);
+out_unlock:
+	mutex_unlock(&inode->i_mutex);
+	path_release(&nd);
+out:
+	putname(tmp);
+out_err:
+	if(lbl)
+		kfree(lbl);
+
+	return error;
 }
 
 /*
@@ -2758,6 +2821,43 @@ const struct inode_operations page_symlink_inode_operations = {
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,
 };
+
+/**
+ * sys_set_file_label
+ *
+ * Sets the label on a file, if allowed and supported
+ *
+ */
+asmlinkage long sys_set_file_label(const char __user *pathname, void __user *label){
+	struct nameidata nd;
+
+	if(security_ops->inode_set_label){
+		char *tmp = getname(pathname);
+		int error = PTR_ERR(tmp);
+		if (IS_ERR(tmp)){
+			printk(KERN_ERR "Failed getname\n");
+			goto out_err;
+		}
+		error = do_path_lookup(AT_FDCWD, tmp, LOOKUP_FOLLOW, &nd);
+		if (error){
+			printk(KERN_ERR "Failed path lookup\n");
+			goto out;
+		}
+				
+		error = security_ops->inode_set_label(nd.dentry->d_inode, label);
+		if (error)
+			printk(KERN_ERR "Failed set label\n");
+
+	out:
+		putname(tmp);
+	out_err:
+		return error;
+
+	}
+
+	return -ENOSYS;
+}
+
 
 EXPORT_SYMBOL(__user_walk);
 EXPORT_SYMBOL(__user_walk_fd);

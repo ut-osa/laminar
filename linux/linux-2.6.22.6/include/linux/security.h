@@ -34,6 +34,9 @@
 #include <linux/xfrm.h>
 #include <net/flow.h>
 
+/* Some difc definitions */
+typedef uint64_t label_t;
+
 struct ctl_table;
 
 /*
@@ -276,6 +279,7 @@ struct request_sock;
  *	@name will be set to the allocated name suffix (e.g. selinux).
  *	@value will be set to the allocated attribute value.
  *	@len will be set to the length of the value.
+ *      @label (can be null) - a module-specific label field to init (when different than task label)
  *	Returns 0 if @name and @value have been successfully set,
  *		-EOPNOTSUPP if no security attribute is needed, or
  *		-ENOMEM on memory allocation failure.
@@ -1147,6 +1151,57 @@ struct request_sock;
  *	@seclen contains the length of the security context.
  *
  * This is the main security structure.
+ * 
+ * XXX: Custom hooks needed for DIFC
+ * @alloc_label: Allocate a new label/capability
+ *
+ * @set_task_label
+ *      Sets the label on the current task, if allowed and supported
+ *      @label
+ *      @op_type (add/remove)
+ *      @label_type (sec/int)
+ * 
+ * @copy_user_label
+ *      @label - user memory pointer to label
+ *      Allocate kernel memory for and copies a module-specific label
+ *      structure from memory.  This struct is later handed to init_security.
+ *
+ * @drop_capability
+ *      @buf - user memory pointer to the capability buffer
+ *      @bufsize - size of the buf
+ *      @type - type of cap +/-
+ *      @flag - permanent/temporary drop
+ *      Drop the capabilities associated with a task, either permanently or temporarily
+ *
+ * @resume_capability
+ *      @buf - user memory pointer to the capability buffer
+ *      @bufsize - size of the buf
+ *      @type - type of cap +/-
+ *      Resume suspended capabilities associated with a task.
+ *
+ * @send_capability
+ *      @pid
+ *      @buf - user memory pointer to the capability buffer
+ *      @bufsize - size of the buf
+ *      @type - type of cap +/-
+ *      Send caps to a pid
+ * 
+ * @file_rw_release 
+ *      @file
+ *      Performs sync related to label changes between file ops
+ *
+ * @inode_set_label
+ *      @inode
+ *      @label
+ *      Set the label on an existing inode
+ *
+ * @replace_label_tcb
+ *      @label
+ *      Lets JVM (TCB only) replace thread labels wholesale.
+ * 
+ * @pipe_full
+ *     @inode - of the pipe in question
+ *     Arbitrate whether a task can learn that the pipe is full.
  */
 struct security_operations {
 	int (*ptrace) (struct task_struct * parent, struct task_struct * child);
@@ -1203,7 +1258,7 @@ struct security_operations {
 	int (*inode_alloc_security) (struct inode *inode);	
 	void (*inode_free_security) (struct inode *inode);
 	int (*inode_init_security) (struct inode *inode, struct inode *dir,
-				    char **name, void **value, size_t *len);
+				    char **name, void **value, size_t *len, void *label);
 	int (*inode_create) (struct inode *dir,
 	                     struct dentry *dentry, int mode);
 	int (*inode_link) (struct dentry *old_dentry,
@@ -1236,6 +1291,7 @@ struct security_operations {
   	int (*inode_listsecurity)(struct inode *inode, char *buffer, size_t buffer_size);
 
 	int (*file_permission) (struct file * file, int mask);
+
 	int (*file_alloc_security) (struct file * file);
 	void (*file_free_security) (struct file * file);
 	int (*file_ioctl) (struct file * file, unsigned int cmd,
@@ -1395,7 +1451,16 @@ struct security_operations {
 			      key_perm_t perm);
 
 #endif	/* CONFIG_KEYS */
-
+	label_t  (*alloc_label) (struct task_struct *tsk, int type, int region);
+	int  (*set_task_label) (struct task_struct *tsk, label_t label, int op_type, int label_type, void __user *bulk_label);
+	void*  (*copy_user_label) (const char __user *label);
+	int (*drop_capabilities) (void __user *buf, unsigned int len, int type, int flag);
+	int (*resume_capabilities) (void __user *buf, unsigned int len, int type);
+	int (*send_capabilities) (pid_t pid, void __user *buf, unsigned int len, int type);
+	void (*file_rw_release) (struct file * file);
+	int (*inode_set_label) (struct inode *inode, void __user *label);
+	int (*replace_label_tcb) (void __user *label);
+	int (*pipe_full) (struct inode *inode);
 };
 
 /* global variables */
@@ -1602,11 +1667,12 @@ static inline int security_inode_init_security (struct inode *inode,
 						struct inode *dir,
 						char **name,
 						void **value,
-						size_t *len)
+						size_t *len,
+						void *label)
 {
 	if (unlikely (IS_PRIVATE (inode)))
 		return -EOPNOTSUPP;
-	return security_ops->inode_init_security (inode, dir, name, value, len);
+	return security_ops->inode_init_security (inode, dir, name, value, len, label);
 }
 	
 static inline int security_inode_create (struct inode *dir,
@@ -1705,6 +1771,7 @@ static inline int security_inode_permission (struct inode *inode, int mask,
 	return security_ops->inode_permission (inode, mask, nd);
 }
 
+
 static inline int security_inode_setattr (struct dentry *dentry,
 					  struct iattr *attr)
 {
@@ -1794,6 +1861,11 @@ static inline int security_inode_listsecurity(struct inode *inode, char *buffer,
 static inline int security_file_permission (struct file *file, int mask)
 {
 	return security_ops->file_permission (file, mask);
+}
+
+static inline void security_file_rw_release (struct file *file)
+{
+	security_ops->file_rw_release (file);
 }
 
 static inline int security_file_alloc (struct file *file)
@@ -2122,6 +2194,13 @@ static inline void security_release_secctx(char *secdata, u32 seclen)
 	return security_ops->release_secctx(secdata, seclen);
 }
 
+/* New for Laminar */
+static inline int security_pipe_full(struct inode *inode)
+{
+	return security_ops->pipe_full(inode);
+}
+
+
 /* prototypes */
 extern int security_init	(void);
 extern int register_security	(struct security_operations *ops);
@@ -2133,7 +2212,6 @@ extern struct dentry *securityfs_create_file(const char *name, mode_t mode,
 					     const struct file_operations *fops);
 extern struct dentry *securityfs_create_dir(const char *name, struct dentry *parent);
 extern void securityfs_remove(struct dentry *dentry);
-
 
 #else /* CONFIG_SECURITY */
 
@@ -3293,9 +3371,17 @@ static inline int security_key_permission(key_ref_t key_ref,
 {
 	return 0;
 }
-
 #endif
 #endif /* CONFIG_KEYS */
+
+static inline void *security_copy_user_label(const char __user *label)
+{
+	if(label)
+		return security_ops->copy_user_label(label);
+	return NULL;
+}
+
+
 
 #endif /* ! __LINUX_SECURITY_H */
 

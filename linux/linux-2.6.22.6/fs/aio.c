@@ -1606,6 +1606,7 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 			;
 	}
 	spin_unlock_irq(&ctx->ctx_lock);
+	security_file_rw_release(req->ki_filp);
 	aio_put_req(req);	/* drop extra ref to req */
 	return 0;
 

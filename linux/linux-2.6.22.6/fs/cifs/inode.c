@@ -875,7 +875,7 @@ static void posix_fill_in_inode(struct inode *tmp_inode,
 	}	
 }
 
-int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
+int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode, void *label)
 {
 	int rc = 0;
 	int xid;

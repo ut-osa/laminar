@@ -46,14 +46,14 @@ ext2_xattr_security_set(struct inode *inode, const char *name,
 }
 
 int
-ext2_init_security(struct inode *inode, struct inode *dir)
+ext2_init_security(struct inode *inode, struct inode *dir, void *label)
 {
 	int err;
 	size_t len;
 	void *value;
 	char *name;
 
-	err = security_inode_init_security(inode, dir, &name, &value, &len);
+	err = security_inode_init_security(inode, dir, &name, &value, &len, label);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;

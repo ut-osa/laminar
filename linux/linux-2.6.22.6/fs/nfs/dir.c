@@ -44,13 +44,14 @@
 static int nfs_opendir(struct inode *, struct file *);
 static int nfs_readdir(struct file *, void *, filldir_t);
 static struct dentry *nfs_lookup(struct inode *, struct dentry *, struct nameidata *);
-static int nfs_create(struct inode *, struct dentry *, int, struct nameidata *);
-static int nfs_mkdir(struct inode *, struct dentry *, int);
+static int nfs_create(struct inode *, struct dentry *, int, struct nameidata *, 
+		      void *label);
+static int nfs_mkdir(struct inode *, struct dentry *, int, void*);
 static int nfs_rmdir(struct inode *, struct dentry *);
 static int nfs_unlink(struct inode *, struct dentry *);
 static int nfs_symlink(struct inode *, struct dentry *, const char *);
 static int nfs_link(struct dentry *, struct inode *, struct dentry *);
-static int nfs_mknod(struct inode *, struct dentry *, int, dev_t);
+static int nfs_mknod(struct inode *, struct dentry *, int, dev_t, void* label);
 static int nfs_rename(struct inode *, struct dentry *,
 		      struct inode *, struct dentry *);
 static int nfs_fsync_dir(struct file *, struct dentry *, int);
@@ -1232,7 +1233,7 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
  * reply path made it appear to have failed.
  */
 static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
-		struct nameidata *nd)
+		      struct nameidata *nd, void *label)
 {
 	struct iattr attr;
 	int error;
@@ -1267,7 +1268,7 @@ out_err:
  * See comments for nfs_proc_create regarding failed operations.
  */
 static int
-nfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
+nfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev, void *label)
 {
 	struct iattr attr;
 	int status;
@@ -1300,7 +1301,7 @@ out_err:
 /*
  * See comments for nfs_proc_create regarding failed operations.
  */
-static int nfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int nfs_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	struct iattr attr;
 	int error;

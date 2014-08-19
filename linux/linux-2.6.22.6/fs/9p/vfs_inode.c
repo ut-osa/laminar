@@ -549,7 +549,7 @@ error:
  *
  */
 
-static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	int err;
 	u32 fid, perm;
@@ -1283,7 +1283,7 @@ clunk_fid:
  */
 
 static int
-v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
+v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev, void *label)
 {
 	int retval;
 	char *name;

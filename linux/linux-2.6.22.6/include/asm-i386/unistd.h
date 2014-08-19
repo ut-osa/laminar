@@ -329,10 +329,21 @@
 #define __NR_signalfd		321
 #define __NR_timerfd		322
 #define __NR_eventfd		323
+#define __NR_alloc_label        328
+#define __NR_set_task_label     329
+#define __NR_mkdir_labeled      330
+#define __NR_drop_capabilities  331
+#define __NR_create_labeled     332
+#define __NR_set_file_label     333
+#define __NR_replace_label_tcb  334
+#define __NR_laminar_pipe       335
+#define __NR_resume_capabilities 336 
+#define __NR_send_capabilities  337
+
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 324
+#define NR_syscalls 338
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

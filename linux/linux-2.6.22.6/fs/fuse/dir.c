@@ -462,7 +462,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 }
 
 static int fuse_mknod(struct inode *dir, struct dentry *entry, int mode,
-		      dev_t rdev)
+		      dev_t rdev, void *label)
 {
 	struct fuse_mknod_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(dir);
@@ -483,7 +483,7 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, int mode,
 }
 
 static int fuse_create(struct inode *dir, struct dentry *entry, int mode,
-		       struct nameidata *nd)
+		       struct nameidata *nd, void *label)
 {
 	if (nd && (nd->flags & LOOKUP_OPEN)) {
 		int err = fuse_create_open(dir, entry, mode, nd);
@@ -491,10 +491,10 @@ static int fuse_create(struct inode *dir, struct dentry *entry, int mode,
 			return err;
 		/* Fall back on mknod */
 	}
-	return fuse_mknod(dir, entry, mode, 0);
+	return fuse_mknod(dir, entry, mode, 0, label);
 }
 
-static int fuse_mkdir(struct inode *dir, struct dentry *entry, int mode)
+static int fuse_mkdir(struct inode *dir, struct dentry *entry, int mode, void *label)
 {
 	struct fuse_mkdir_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(dir);

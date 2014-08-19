@@ -20,6 +20,7 @@
 #include <linux/fsnotify.h>
 #include <linux/sysctl.h>
 #include <linux/percpu_counter.h>
+#include <linux/pipe_fs_i.h>
 
 #include <asm/atomic.h>
 
@@ -142,6 +143,15 @@ void fastcall fput(struct file *file)
 {
 	if (atomic_dec_and_test(&file->f_count))
 		__fput(file);
+	/* LAMINAR Hack: if we are dropping a pipe ref and we are
+	 * labeled incompatibly, hack up the ref count to suppress
+	 * EOFs
+	 */
+	else if((file->f_dentry->d_inode->i_mode & S_IFIFO) 
+		&& security_inode_permission(file->f_dentry->d_inode, MAY_WRITE, 0)){
+		file->f_dentry->d_inode->i_pipe->writers++;
+		file->f_dentry->d_inode->i_pipe->readers++;
+	}
 }
 
 EXPORT_SYMBOL(fput);

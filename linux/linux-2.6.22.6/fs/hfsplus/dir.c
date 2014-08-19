@@ -354,7 +354,7 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 	return res;
 }
 
-static int hfsplus_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int hfsplus_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	struct inode *inode;
 	int res;
@@ -425,7 +425,7 @@ static int hfsplus_symlink(struct inode *dir, struct dentry *dentry,
 }
 
 static int hfsplus_mknod(struct inode *dir, struct dentry *dentry,
-			 int mode, dev_t rdev)
+			 int mode, dev_t rdev, void *label)
 {
 	struct super_block *sb;
 	struct inode *inode;

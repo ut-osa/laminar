@@ -316,7 +316,7 @@ cifs_create_out:
 }
 
 int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
-		dev_t device_number)
+	       dev_t device_number, void *label)
 {
 	int rc = -EPERM;
 	int xid;

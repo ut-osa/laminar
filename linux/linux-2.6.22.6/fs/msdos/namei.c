@@ -357,7 +357,7 @@ out:
 }
 
 /***** Make a directory */
-static int msdos_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int msdos_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;

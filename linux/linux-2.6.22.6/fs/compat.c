@@ -1123,6 +1123,8 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	else
 		ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
 
+	security_file_rw_release(file);
+
 out:
 	if (iov != iovstack)
 		kfree(iov);

@@ -62,10 +62,10 @@ extern ssize_t jfs_listxattr(struct dentry *, char *, size_t);
 extern int jfs_removexattr(struct dentry *, const char *);
 
 #ifdef CONFIG_JFS_SECURITY
-extern int jfs_init_security(tid_t, struct inode *, struct inode *);
+extern int jfs_init_security(tid_t, struct inode *, struct inode *, void *);
 #else
 static inline int jfs_init_security(tid_t tid, struct inode *inode,
-				    struct inode *dir)
+				    struct inode *dir, void *label)
 {
 	return 0;
 }

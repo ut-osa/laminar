@@ -218,7 +218,8 @@ xfs_validate_fields(
 STATIC int
 xfs_init_security(
 	bhv_vnode_t	*vp,
-	struct inode	*dir)
+	struct inode	*dir,
+	void *label)
 {
 	struct inode	*ip = vn_to_inode(vp);
 	size_t		length;
@@ -226,7 +227,7 @@ xfs_init_security(
 	char		*name;
 	int		error;
 
-	error = security_inode_init_security(ip, dir, &name, &value, &length);
+	error = security_inode_init_security(ip, dir, &name, &value, &length, label);
 	if (error) {
 		if (error == -EOPNOTSUPP)
 			return 0;
@@ -283,7 +284,8 @@ xfs_vn_mknod(
 	struct inode	*dir,
 	struct dentry	*dentry,
 	int		mode,
-	dev_t		rdev)
+	dev_t		rdev, 
+	void *label)
 {
 	struct inode	*ip;
 	bhv_vattr_t	vattr = { 0 };
@@ -332,7 +334,7 @@ xfs_vn_mknod(
 	}
 
 	if (unlikely(!error)) {
-		error = xfs_init_security(vp, dir);
+	  error = xfs_init_security(vp, dir, label);
 		if (error)
 			xfs_cleanup_inode(dvp, vp, dentry, mode);
 	}
@@ -369,16 +371,17 @@ xfs_vn_create(
 	int		mode,
 	struct nameidata *nd)
 {
-	return xfs_vn_mknod(dir, dentry, mode, 0);
+  return xfs_vn_mknod(dir, dentry, mode, 0, NULL);
 }
 
 STATIC int
 xfs_vn_mkdir(
 	struct inode	*dir,
 	struct dentry	*dentry,
-	int		mode)
+	int		mode, 
+	void *label)
 {
-	return xfs_vn_mknod(dir, dentry, mode|S_IFDIR, 0);
+  return xfs_vn_mknod(dir, dentry, mode|S_IFDIR, 0, label);
 }
 
 STATIC struct dentry *
@@ -474,7 +477,7 @@ xfs_vn_symlink(
 
 	error = bhv_vop_symlink(dvp, dentry, &va, (char *)symname, &cvp, NULL);
 	if (likely(!error && cvp)) {
-		error = xfs_init_security(cvp, dir);
+	  error = xfs_init_security(cvp, dir, NULL);
 		if (likely(!error)) {
 			ip = vn_to_inode(cvp);
 			d_instantiate(dentry, ip);

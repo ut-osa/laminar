@@ -266,7 +266,7 @@ static void mqueue_delete_inode(struct inode *inode)
 }
 
 static int mqueue_create(struct inode *dir, struct dentry *dentry,
-				int mode, struct nameidata *nd)
+			 int mode, struct nameidata *nd, void *label)
 {
 	struct inode *inode;
 	struct mq_attr *attr = dentry->d_fsdata;
@@ -617,7 +617,7 @@ static struct file *do_create(struct dentry *dir, struct dentry *dentry,
 	}
 
 	mode &= ~current->fs->umask;
-	ret = vfs_create(dir->d_inode, dentry, mode, NULL);
+	ret = vfs_create(dir->d_inode, dentry, mode, NULL, NULL);
 	dentry->d_fsdata = NULL;
 	if (ret)
 		goto out;

@@ -8,7 +8,7 @@
 #include <linux/sched.h>
 #include "hpfs_fn.h"
 
-static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	const char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
@@ -208,7 +208,7 @@ bail:
 	return err;
 }
 
-static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
+static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev, void *label)
 {
 	const char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;

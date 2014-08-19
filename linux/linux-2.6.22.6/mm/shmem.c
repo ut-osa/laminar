@@ -1755,14 +1755,14 @@ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
  * File creation. Allocate an inode, and we're done..
  */
 static int
-shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev, void *label)
 {
 	struct inode *inode = shmem_get_inode(dir->i_sb, mode, dev);
 	int error = -ENOSPC;
 
 	if (inode) {
 		error = security_inode_init_security(inode, dir, NULL, NULL,
-						     NULL);
+						     NULL, label);
 		if (error) {
 			if (error != -EOPNOTSUPP) {
 				iput(inode);
@@ -1787,20 +1787,20 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	return error;
 }
 
-static int shmem_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int shmem_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	int error;
 
-	if ((error = shmem_mknod(dir, dentry, mode | S_IFDIR, 0)))
+	if ((error = shmem_mknod(dir, dentry, mode | S_IFDIR, 0, label)))
 		return error;
 	inc_nlink(dir);
 	return 0;
 }
 
 static int shmem_create(struct inode *dir, struct dentry *dentry, int mode,
-		struct nameidata *nd)
+			struct nameidata *nd, void *label)
 {
-	return shmem_mknod(dir, dentry, mode | S_IFREG, 0);
+	return shmem_mknod(dir, dentry, mode | S_IFREG, 0, label);
 }
 
 /*
@@ -1914,7 +1914,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 		return -ENOSPC;
 
 	error = security_inode_init_security(inode, dir, NULL, NULL,
-					     NULL);
+					     NULL, NULL);
 	if (error) {
 		if (error != -EOPNOTSUPP) {
 			iput(inode);

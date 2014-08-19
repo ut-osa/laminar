@@ -193,7 +193,7 @@ static const struct file_operations bad_file_ops =
 };
 
 static int bad_inode_create (struct inode *dir, struct dentry *dentry,
-		int mode, struct nameidata *nd)
+			     int mode, struct nameidata *nd, void *label)
 {
 	return -EIO;
 }
@@ -222,7 +222,7 @@ static int bad_inode_symlink (struct inode *dir, struct dentry *dentry,
 }
 
 static int bad_inode_mkdir(struct inode *dir, struct dentry *dentry,
-			int mode)
+			   int mode, void *label)
 {
 	return -EIO;
 }
@@ -233,7 +233,7 @@ static int bad_inode_rmdir (struct inode *dir, struct dentry *dentry)
 }
 
 static int bad_inode_mknod (struct inode *dir, struct dentry *dentry,
-			int mode, dev_t rdev)
+			    int mode, dev_t rdev, void *label)
 {
 	return -EIO;
 }

@@ -23,7 +23,7 @@ static struct dentry *autofs_root_lookup(struct inode *,struct dentry *, struct 
 static int autofs_root_symlink(struct inode *,struct dentry *,const char *);
 static int autofs_root_unlink(struct inode *,struct dentry *);
 static int autofs_root_rmdir(struct inode *,struct dentry *);
-static int autofs_root_mkdir(struct inode *,struct dentry *,int);
+static int autofs_root_mkdir(struct inode *,struct dentry *,int, void*);
 static int autofs_root_ioctl(struct inode *, struct file *,unsigned int,unsigned long);
 
 const struct file_operations autofs_root_operations = {
@@ -423,7 +423,7 @@ static int autofs_root_rmdir(struct inode *dir, struct dentry *dentry)
 	return 0;
 }
 
-static int autofs_root_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int autofs_root_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dir->i_sb);
 	struct autofs_dirhash *dh = &sbi->dirhash;

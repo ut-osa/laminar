@@ -277,6 +277,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 				add_rchar(current, ret);
 			}
 			inc_syscr(current);
+			security_file_rw_release(file);
 		}
 	}
 
@@ -335,6 +336,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 				add_wchar(current, ret);
 			}
 			inc_syscw(current);
+			security_file_rw_release(file);
 		}
 	}
 
@@ -621,6 +623,8 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	else
 		ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
 
+	security_file_rw_release(file);
+
 out:
 	if (iov != iovstack)
 		kfree(iov);
@@ -746,7 +750,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	retval = -EBADF;
 	out_file = fget_light(out_fd, &fput_needed_out);
 	if (!out_file)
-		goto fput_in;
+		goto fput_in_sec;
 	if (!(out_file->f_mode & FMODE_WRITE))
 		goto fput_out;
 	retval = -EINVAL;
@@ -768,7 +772,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	pos = *ppos;
 	retval = -EINVAL;
 	if (unlikely(pos < 0))
-		goto fput_out;
+		goto fput_out_sec;
 	if (unlikely(pos + count > max)) {
 		retval = -EOVERFLOW;
 		if (pos >= max)
@@ -788,8 +792,12 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	if (*ppos > max)
 		retval = -EOVERFLOW;
 
+fput_out_sec:
+	security_file_rw_release(out_file);
 fput_out:
 	fput_light(out_file, fput_needed_out);
+fput_in_sec:
+	security_file_rw_release(in_file);
 fput_in:
 	fput_light(in_file, fput_needed_in);
 out:

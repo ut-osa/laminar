@@ -739,7 +739,7 @@ static void client_drop_item(struct config_item *parent_item,
 }
 
 
-static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	int ret, module_got = 0;
 	struct config_group *group;

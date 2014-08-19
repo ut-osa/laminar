@@ -93,6 +93,14 @@ config SECURITY_ROOTPLUG
 	  
 	  If you are unsure how to answer this question, answer N.
 
+config SECURITY_DIFC
+       tristate "DIFC Support"
+       depends on SECURITY && SECURITY_NETWORK
+       help
+	 Enable Distributed Information Flow Control support in the
+	 kernel on labeled objects.  This model follows the Flume
+	 labeling approach.
+
 source security/selinux/Kconfig
 
 endmenu

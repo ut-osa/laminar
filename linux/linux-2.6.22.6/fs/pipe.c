@@ -17,6 +17,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/audit.h>
+#include <linux/security.h>
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -341,10 +342,10 @@ pipe_write(struct kiocb *iocb, const struct iovec *_iov,
 	ssize_t ret;
 	int do_wakeup;
 	struct iovec *iov = (struct iovec *)_iov;
-	size_t total_len;
+	size_t total_len, total_len_saved;
 	ssize_t chars;
 
-	total_len = iov_length(iov, nr_segs);
+	total_len_saved = total_len = iov_length(iov, nr_segs);
 	/* Null write succeeds. */
 	if (unlikely(total_len == 0))
 		return 0;
@@ -474,6 +475,20 @@ redo2:
 		}
 		if (bufs < PIPE_BUFFERS)
 			continue;
+
+		/* dep: At this point, the write is failing because
+		 * the pipe is full.  If this pipe or the task are
+		 * labeled, we must make it unreliable.  Fake this by
+		 * claiming the entire buffer was written.
+		 *
+		 * Rather than bake in the logic here, add a new LSM
+		 * hook (although I wonder how many other security policies need this).
+		 */
+		if(security_pipe_full(filp->f_path.dentry->d_inode)){
+			ret = total_len_saved;
+			break;
+		}
+
 		if (filp->f_flags & O_NONBLOCK) {
 			if (!ret)
 				ret = -EAGAIN;
@@ -584,10 +599,16 @@ pipe_release(struct inode *inode, int decr, int decw)
 
 	mutex_lock(&inode->i_mutex);
 	pipe = inode->i_pipe;
-	pipe->readers -= decr;
-	pipe->writers -= decw;
+	// Treat updates to the user-visible refcount as writes
+	if(0 == security_inode_permission(inode, MAY_WRITE, NULL)){
+		pipe->readers -= decr;
+		pipe->writers -= decw;
+	} 
 
-	if (!pipe->readers && !pipe->writers) {
+	pipe->real_readers -= decr;
+	pipe->real_writers -= decw;
+
+	if (!pipe->real_readers && !pipe->real_writers) {
 		free_pipe_info(inode);
 	} else {
 		wake_up_interruptible(&pipe->wait);
@@ -688,6 +709,7 @@ pipe_read_open(struct inode *inode, struct file *filp)
 	   below are the only places.  So it doesn't seem worthwhile.  */
 	mutex_lock(&inode->i_mutex);
 	inode->i_pipe->readers++;
+	inode->i_pipe->real_readers++;
 	mutex_unlock(&inode->i_mutex);
 
 	return 0;
@@ -698,6 +720,7 @@ pipe_write_open(struct inode *inode, struct file *filp)
 {
 	mutex_lock(&inode->i_mutex);
 	inode->i_pipe->writers++;
+	inode->i_pipe->real_writers++;
 	mutex_unlock(&inode->i_mutex);
 
 	return 0;
@@ -707,10 +730,14 @@ static int
 pipe_rdwr_open(struct inode *inode, struct file *filp)
 {
 	mutex_lock(&inode->i_mutex);
-	if (filp->f_mode & FMODE_READ)
+	if (filp->f_mode & FMODE_READ){
 		inode->i_pipe->readers++;
-	if (filp->f_mode & FMODE_WRITE)
+		inode->i_pipe->real_readers++;
+	}
+	if (filp->f_mode & FMODE_WRITE){
 		inode->i_pipe->writers++;
+		inode->i_pipe->real_writers++;
+	}
 	mutex_unlock(&inode->i_mutex);
 
 	return 0;
@@ -868,7 +895,8 @@ static struct inode * get_pipe_inode(void)
 		goto fail_iput;
 	inode->i_pipe = pipe;
 
-	pipe->readers = pipe->writers = 1;
+	pipe->real_readers = pipe->real_writers =
+		pipe->readers = pipe->writers = 1;
 	inode->i_fop = &rdwr_pipe_fops;
 
 	/*
@@ -892,7 +920,7 @@ fail_inode:
 	return NULL;
 }
 
-struct file *create_write_pipe(void)
+struct file *create_write_pipe(void *label)
 {
 	int err;
 	struct inode *inode;
@@ -907,6 +935,14 @@ struct file *create_write_pipe(void)
 	inode = get_pipe_inode();
 	if (!inode)
 		goto err_file;
+
+	/* LAMINAR: Set up inode label on the pipe */
+	err = security_inode_init_security(inode, pipe_mnt->mnt_sb->s_root->d_inode, 
+					   NULL, NULL, NULL, label);
+	if(err < 0 && err != -EOPNOTSUPP){
+		printk(KERN_ERR "Bad sec init = %d\n", err);
+		goto err_inode;
+	}
 
 	err = -ENOMEM;
 	dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &name);
@@ -968,13 +1004,15 @@ struct file *create_read_pipe(struct file *wrf)
 	return f;
 }
 
-int do_pipe(int *fd)
+int do_pipe(int *fd, const char __user *label)
 {
 	struct file *fw, *fr;
 	int error;
 	int fdw, fdr;
 
-	fw = create_write_pipe();
+	void *lbl = security_copy_user_label(label);
+
+	fw = create_write_pipe(lbl);
 	if (IS_ERR(fw))
 		return PTR_ERR(fw);
 	fr = create_read_pipe(fw);
@@ -1001,6 +1039,9 @@ int do_pipe(int *fd)
 	fd[0] = fdr;
 	fd[1] = fdw;
 
+	if(lbl)
+		kfree(lbl);
+
 	return 0;
 
  err_fdw:
@@ -1013,6 +1054,25 @@ int do_pipe(int *fd)
 	put_filp(fr);
  err_write_pipe:
 	free_write_pipe(fw);
+	if(lbl)
+		kfree(lbl);
+
+	return error;
+}
+
+/*
+ * sys_laminar_pipe() : creates labeled pipes
+ *
+ */
+asmlinkage int sys_laminar_pipe(unsigned long __user * fildes, const char __user * label)
+{
+	int fd[2];
+	int error;
+	error = do_pipe(fd, label);
+	if (!error) {
+		if (copy_to_user(fildes, fd, 2*sizeof(int)))
+			error = -EFAULT;
+	}
 	return error;
 }
 

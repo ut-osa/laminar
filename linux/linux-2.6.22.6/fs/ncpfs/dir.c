@@ -36,12 +36,12 @@ static int ncp_readdir(struct file *, void *, filldir_t);
 static int ncp_create(struct inode *, struct dentry *, int, struct nameidata *);
 static struct dentry *ncp_lookup(struct inode *, struct dentry *, struct nameidata *);
 static int ncp_unlink(struct inode *, struct dentry *);
-static int ncp_mkdir(struct inode *, struct dentry *, int);
+static int ncp_mkdir(struct inode *, struct dentry *, int, void *);
 static int ncp_rmdir(struct inode *, struct dentry *);
 static int ncp_rename(struct inode *, struct dentry *,
 	  	      struct inode *, struct dentry *);
 static int ncp_mknod(struct inode * dir, struct dentry *dentry,
-		     int mode, dev_t rdev);
+		     int mode, dev_t rdev, void *label);
 #if defined(CONFIG_NCPFS_EXTRAS) || defined(CONFIG_NCPFS_NFS_NS)
 extern int ncp_symlink(struct inode *, struct dentry *, const char *);
 #else
@@ -945,7 +945,7 @@ static int ncp_create(struct inode *dir, struct dentry *dentry, int mode,
 	return ncp_create_new(dir, dentry, mode, 0, 0);
 }
 
-static int ncp_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int ncp_mkdir(struct inode *dir, struct dentry *dentry, int mode, void *label)
 {
 	struct ncp_entry_info finfo;
 	struct ncp_server *server = NCP_SERVER(dir);
@@ -1170,7 +1170,7 @@ out:
 }
 
 static int ncp_mknod(struct inode * dir, struct dentry *dentry,
-		     int mode, dev_t rdev)
+		     int mode, dev_t rdev, void *label)
 {
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
