@@ -443,7 +443,10 @@ public final class LabelSet {
   public boolean invocationLessThan(long v){
     return (labels[0]<v ? true: false);
   }
-  
+  //Check invocation is < v and not equal to the default value c
+  public boolean invocationLessAndNotEq(long v, long c){
+    return ((labels[0]<v && labels[0]!=c) ? true: false);
+  }
   public long getInvocationNumber(){
     if(len>0)
       return labels[0];

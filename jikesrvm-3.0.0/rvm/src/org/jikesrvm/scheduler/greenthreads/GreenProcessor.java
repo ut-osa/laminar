@@ -154,12 +154,12 @@ public final class GreenProcessor extends Processor {
    * DIFC: value of currentThread's inSecureRegion variable
    * Also contains the capabilities that are shared by all threads
    */
-  public boolean inSecureRegion;
   public long startSecureRegionCycles; // value of RDTSC when we last started a SR
   // DIFC: TODO: trying this out since we need something there on VM startup to avoid assertion failures
-  public SRState currentSRState = new SRState(LabelSet.EMPTY, LabelSet.EMPTY); //current state of the SR or the thread if outside the SR
+  //public SRState currentSRState = new SRState(LabelSet.EMPTY, LabelSet.EMPTY); //current state of the SR or the thread if outside the SR
   /*Airavat: value of the current invocation number*/
   public long invocation_number;
+  public boolean inMapperRegion;
   
   /**
    * Create data object to be associated with an o/s kernel thread
@@ -314,30 +314,30 @@ public final class GreenProcessor extends Processor {
     // DIFC: get the current thread's value of inSecureRegion; set the previous thread's
     if (DIFC.enabled && !DIFC.isAiravat) {
       /*TODO: reset the labels if you are inside a secure region. Use the tcb syscall*/
-      previousThread.inSecureRegion = this.inSecureRegion;
-      this.inSecureRegion = ((GreenThread)activeThread).inSecureRegion;
+	//previousThread.inSecureRegion = this.inSecureRegion;
+	//this.inSecureRegion = ((GreenThread)activeThread).inSecureRegion;
       
-      previousThread.currentSRState=this.currentSRState;
-      this.currentSRState=((GreenThread)activeThread).currentSRState;
+	//previousThread.currentSRState=this.currentSRState;
+	//this.currentSRState=((GreenThread)activeThread).currentSRState;
       
       // if we were in a secure region, but are now out, record the time
-      if (previousThread.inSecureRegion && !this.inSecureRegion) {
+      if (previousThread.inSecureRegion && !((GreenThread)activeThread).inSecureRegion) {
         long elapsed = Magic.getTimeBase() - startSecureRegionCycles;
         DIFC.totalCyclesInSecureRegions += elapsed;
       // if we just started a secure region, start the time
-      } else if (!previousThread.inSecureRegion && this.inSecureRegion) {
+      } else if (!previousThread.inSecureRegion && ((GreenThread)activeThread).inSecureRegion) {
         startSecureRegionCycles = Magic.getTimeBase();
       }
     }
     
-    /*Airavat: set the invocation number durin the thread switch*/
+    /*Airavat: set the invocation number during the thread switch*/
     if(DIFC.isAiravat && DIFC.enabled){
       previousThread.invocation_number=this.invocation_number;
       this.invocation_number=((GreenThread)activeThread).invocation_number;
-      previousThread.inSecureRegion = this.inSecureRegion;
-      this.inSecureRegion = ((GreenThread)activeThread).inSecureRegion;
-      previousThread.currentSRState=this.currentSRState;
-      this.currentSRState=((GreenThread)activeThread).currentSRState;
+      previousThread.inMapperRegion = this.inMapperRegion;
+      this.inMapperRegion = ((GreenThread)activeThread).inMapperRegion;
+      //previousThread.currentSRState=this.currentSRState;
+      //this.currentSRState=((GreenThread)activeThread).currentSRState;
     }
     
     if (!previousThread.isDaemonThread() && idleProcessor != null && !readyQueue.isEmpty()) {

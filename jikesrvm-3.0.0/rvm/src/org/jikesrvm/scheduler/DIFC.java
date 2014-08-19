@@ -67,8 +67,6 @@ public final class DIFC {
   public static final int LABELS=0, CAPABILITY=1;
   /*Drop capabilities permanent or temporarily*/
   public static final int DROP_PERMANENT=0, DROP_TEMPORARY=1;
-  /*TODO: temporarily use this to get capabilities*/
-  static long capability_index=1;
   /*Lets us know when boot is complete*/
   private static boolean BOOT_COMPLETE=false;
   /* Value of cycles when we start */
@@ -78,6 +76,7 @@ public final class DIFC {
 
   /*Airavat: added*/ 
   public static final boolean isAiravat= VM.airavatEnabled;
+  public static final long AIRAVAT_CONFIG = -10;
   // called when the VM finishes booting (right before starting main thread)
   public static void init() {
     if (enabled) {
@@ -112,19 +111,49 @@ public final class DIFC {
     }
   }
 
+    public static void resetStartCycles() {
+	startCycles = Magic.getTimeBase();
+	totalCyclesInSecureRegions = 0;
+	secureRegionCount = 0;
+    }
+
   /*Called to mark the start of a secure region*/
   // DIFC: TODO: trying inlining this since there should be a lot of opportunities
   @Inline @UninterruptibleNoWarn
   //@NoNullCheck @NoBoundsCheck @NoSideEffects
-  public static void startSecureRegion(LabelSet plusCapabilitySet,
-      LabelSet minusCapabilitySet,
+  public static void startSecureRegion(
       LabelSet secrecySet,
       LabelSet integritySet) throws DIFCException{
 
     //profile("DIFC.startSecureRegion");
     
     // DIFC: TODO: uncomment!
-    //Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).startSecureRegionCycles = Magic.getTimeBase();
+    Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).startSecureRegionCycles = Magic.getTimeBase();
+
+    /* Check the Thread has the right privileges to give power to the secure region
+     * Threads currently have no persistent labels, rather only capabilities.
+     * Secrecy and integrity labels should be in plusCapability of the current thread
+     * or in that of list of capabilities common to all threads
+     * TODO: check that the capabilities are also a subset
+     * */
+    
+    if(secrecySet==null) secrecySet=LabelSet.EMPTY;
+    if(integritySet==null) integritySet=LabelSet.EMPTY;
+    startSecureRegionHelper(LabelSet.EMPTY, LabelSet.EMPTY, secrecySet, integritySet);
+  }
+
+  @Inline @UninterruptibleNoWarn
+  //@NoNullCheck @NoBoundsCheck @NoSideEffects
+  public static void startSecureRegionDecEnd(
+      LabelSet secrecySet,
+      LabelSet integritySet,
+      LabelSet plusCapabilitySet,
+      LabelSet minusCapabilitySet) throws DIFCException{
+
+    //profile("DIFC.startSecureRegion");
+    
+    // DIFC: TODO: uncomment!
+    Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).startSecureRegionCycles = Magic.getTimeBase();
 
     /* Check the Thread has the right privileges to give power to the secure region
      * Threads currently have no persistent labels, rather only capabilities.
@@ -139,6 +168,8 @@ public final class DIFC {
     if(minusCapabilitySet==null) minusCapabilitySet=LabelSet.EMPTY;
     startSecureRegionHelper(plusCapabilitySet, minusCapabilitySet, secrecySet, integritySet);
   }
+
+    
   
   @UninterruptibleNoWarn
   public static void startSecureRegionHelper(LabelSet plusCapabilitySet,
@@ -146,11 +177,12 @@ public final class DIFC {
       LabelSet secrecySet,
       LabelSet integritySet) {
     GreenProcessor pr = Magic.processorAsGreenProcessor(Processor.getCurrentProcessor());
-    SRState curSRState=pr.currentSRState;
+    GreenThread current = (GreenThread) pr.getCurrentThread();
+    SRState curSRState=current.currentSRState;
     //We are starting a SR, is this is the first SR then it means that the secrecy and integrity sets of the parent (i.e. thread) is empty
     LabelSet plusCap=curSRState.plusCapabilitySet;
     LabelSet minusCap=curSRState.minusCapabilitySet;
-    if(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion){
+    if(!current.inSecureRegion){
       //We need to account for the global capabilities
       plusCap=LabelSet.union(plusCap, GreenThread.commonPlusCapabilitySet);
       minusCap=LabelSet.union(minusCap, GreenThread.commonMinusCapabilitySet);
@@ -184,14 +216,14 @@ public final class DIFC {
       child.setParentState(curSRState);
     }
     
-    pr.currentSRState = child;
-    pr.inSecureRegion = true;
+    current.currentSRState = child;
+    current.inSecureRegion = true;
     
     if (verbosity >= 2) {
       VM.sysWriteln("Debug: start");
     }
     // DIFC: TODO: uncomment
-    //secureRegionCount++;
+    secureRegionCount++;
   }
 
   // error path
@@ -199,7 +231,8 @@ public final class DIFC {
     //an error had occurred, so lets give the dummy child empty labels
     SRState child;
     GreenProcessor pr = Magic.processorAsGreenProcessor(Processor.getCurrentProcessor());
-    SRState curSRState = pr.currentSRState;
+    GreenThread current = (GreenThread) pr.getCurrentThread();
+    SRState curSRState = current.currentSRState;
     child = curSRState.getChildState();
     if (child != null) {
       child.clearState();
@@ -208,7 +241,7 @@ public final class DIFC {
       curSRState.setChildState(child);
       child.setParentState(curSRState);
     }
-    pr.currentSRState = child;
+    current.currentSRState = child;
     throw new DIFCException(error);
   }
   
@@ -221,11 +254,12 @@ public final class DIFC {
     // long elapsed = Magic.getTimeBase() - Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).startSecureRegionCycles;
     // DIFC.totalCyclesInSecureRegions += elapsed;
     GreenProcessor pr = Magic.processorAsGreenProcessor(Processor.getCurrentProcessor());
-    if(!pr.inSecureRegion) return;
+    GreenThread current = (GreenThread) pr.getCurrentThread();
+    if(!current.inSecureRegion) return;
     //profile("DIFC.endSecureRegion");
   
     /*Lets just pop the stack*/
-    SRState state=pr.currentSRState;
+    SRState state=current.currentSRState;
     if(state.shouldRestoreLabel()){
       /*TODO: use the TCB replace call. This is currently broken due to the multiplexing of user threads on jikes threads. 
        * It would be easier to handle in the next version of jikes where user threads have one-to-one mapping with kernel threads.*/
@@ -233,10 +267,10 @@ public final class DIFC {
       //sysCall.sysReplaceLabelsTCB(state.parent.secrecySet.getLongLabels(),state.parent.secrecySet.len,state.parent.integritySet.getLongLabels(),state.parent.integritySet.len);
     }
     SRState parent = state.getParentState();
-    pr.currentSRState=parent;
+    current.currentSRState=parent;
     //check if we are out of all SR's
     if(parent.getParentState()==null)
-      pr.inSecureRegion = false;
+      current.inSecureRegion = false;
     //If we are outside a SR then 
     // allocation labels=EMPTY,which means to allocate unlabeled objects
     // (which should happen anyway since a simple unlabeled allocation should
@@ -253,8 +287,8 @@ public final class DIFC {
 
     /*Only secure regions can add labels*/
     if(label==null) return;
-    if(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion){
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
+	SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       if(!label.isSubsetOf(curState.plusCapabilitySet))
           throw new DIFCException("Lacks capability to add secrecy label");
       curState.secrecySet=LabelSet.union(curState.secrecySet,label);
@@ -269,8 +303,8 @@ public final class DIFC {
 
     /*Only secure regions can add labels*/
     if(label==null) return;
-    if(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion){
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
         if(!label.isSubsetOf(curState.plusCapabilitySet))
           throw new DIFCException("Lacks capability to add integrity label");
         curState.integritySet=LabelSet.union(curState.integritySet,label);
@@ -284,8 +318,8 @@ public final class DIFC {
     //profile("DIFC.removeSecrecyLabel");
 
     /*Only secure regions can remove labels*/
-    if(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion){
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       if(label.isSubsetOf(curState.minusCapabilitySet)){
         curState.secrecySet=LabelSet.minus(curState.secrecySet,label);
         return;
@@ -300,8 +334,8 @@ public final class DIFC {
     //profile("DIFC.removeIntegrityLabel");
 
     /*Only secure regions can remove labels*/
-    if(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion){
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       if(label.isSubsetOf(curState.minusCapabilitySet)){
         curState.integritySet=LabelSet.minus(curState.integritySet,label);
         return;
@@ -320,7 +354,7 @@ public final class DIFC {
 
     if(!(type==PLUS_CAPABILITY||type==MINUS_CAPABILITY||type==BOTH_CAPABILITY))
       throw new DIFCException("Wrong type of capability");
-    SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
     if(type==PLUS_CAPABILITY || type==BOTH_CAPABILITY) 
       curState.plusCapabilitySet=LabelSet.minus(curState.plusCapabilitySet, label);
     if(type==MINUS_CAPABILITY || type==BOTH_CAPABILITY)
@@ -333,37 +367,23 @@ public final class DIFC {
    * */
   public static void dropThreadCapability(LabelSet label, int type) throws DIFCException{
 
+    SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
+
+    /* DP: This is a write to the capability set.  Only allow if label is empty.*/
+    if (curState.secrecySet != LabelSet.EMPTY)
+	throw new DIFCException("Attempt to write capability set in secret SR.");
+
     //profile("DIFC.dropThreadCapability");
     //TODO: fix this for nested SR
     dropCapability(label, type);
     /*Lets remove the threads capability if this was called inside the secure region*/
-    if(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion){
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       if(type==PLUS_CAPABILITY || type==BOTH_CAPABILITY) 
         curState.parent.plusCapabilitySet = LabelSet.minus(curState.parent.plusCapabilitySet, label);
       if(type==MINUS_CAPABILITY || type==BOTH_CAPABILITY)
         curState.parent.minusCapabilitySet = LabelSet.minus(curState.parent.minusCapabilitySet, label);
     }
     //TODO: make syscall to drop capability from the OS 
-  }
-
-  /* This function drops the capability from the common capability list. It will also
-   * remove the capability from the thread's cap-list also. If called inside the secure region
-   * then the capability of the secure region is also dropped
-   * TODO: Should we allow a single thread to drop the common capability? We need some kind
-   * of consensus amongst the threads !!
-   * */
-  public static synchronized void dropCommonThreadCapability(LabelSet label, int type) throws DIFCException{
-
-    //profile("DIFC.dropCommonThreadCapability");
-
-    dropThreadCapability(label, type);
-    /*Lets remove the capability from the thread shared list*/
-    if(type==PLUS_CAPABILITY || type==BOTH_CAPABILITY) 
-      GreenThread.commonPlusCapabilitySet=LabelSet.minus(GreenThread.commonPlusCapabilitySet, label);
-    if(type==MINUS_CAPABILITY || type==BOTH_CAPABILITY)
-      GreenThread.commonMinusCapabilitySet=LabelSet.minus(GreenThread.commonMinusCapabilitySet, label);
-    //TODO: make syscall to drop capability from the OS
   }
 
   /* Allocates a new capability. It adds the capability (type=plus, minus or both)
@@ -376,19 +396,19 @@ public final class DIFC {
   public static synchronized long createCapability(int type, int region){
 
     //profile("DIFC.createCapability");
+    SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
+    /* DP: This is a write to the capability set.  Only allow if label is empty.*/
+    if (curState.secrecySet != LabelSet.EMPTY)
+	throw new DIFCException("Attempt to write capability set in secret SR.");
 
     if(!(type==PLUS_CAPABILITY||type==MINUS_CAPABILITY||type==BOTH_CAPABILITY))
       throw new DIFCException("Wrong type of capability");
     long label=OScreateLabel(type,region);
-    /*TODO: Currently, if the OS component is not working then lets use the rvm capability*/
-    if(label<=0){
-      if (verbosity >= 2) {
-        System.out.println("OS could not create capability: ENum="+label);
-      }
-      label=capability_index++;
-    }
+
+    if(label<=0)
+	throw new DIFCException("OS capability creation failed: " + label);
     
-    boolean inSecureRegion = GreenProcessor.getCurrentProcessor().inSecureRegion;
+    boolean inSecureRegion = ((GreenThread) GreenProcessor.getCurrentThread()).inSecureRegion;
     addThreadCapability(type,label, true);
     if(inSecureRegion && region==REGION_SELF)
       addThreadCapability(type,label, false);
@@ -406,7 +426,7 @@ public final class DIFC {
     //TODO: fix the nested SR region
     //profile("DIFC.addThreadCapability");
 
-    SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
     if (type==PLUS_CAPABILITY || type==BOTH_CAPABILITY) {
       if (current) {
         curState.plusCapabilitySet = LabelSet.union(curState.plusCapabilitySet, label);
@@ -435,16 +455,16 @@ public final class DIFC {
     
     if(set==LABELS){
       /*Only secure regions have labels associated with them*/
-      if(!GreenProcessor.getCurrentProcessor().inSecureRegion)
+      if(!((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion)
         return null;
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       switch(type){
       case SECRECY: return curState.secrecySet;
       case INTEGRITY: return curState.integritySet;
       default: return null;
       }
     }else if(set==CAPABILITY){
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       switch(type){
       case PLUS_CAPABILITY: return curState.plusCapabilitySet;
       case MINUS_CAPABILITY: return curState.minusCapabilitySet;
@@ -484,7 +504,7 @@ public final class DIFC {
   
   @Entrypoint @Uninterruptible
   public static final void readBarrierDynamicDebug(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       readBarrierInsideSRDebug(obj);
     } else {
       readBarrierOutsideSRDebug(obj);
@@ -493,7 +513,7 @@ public final class DIFC {
 
   @Entrypoint @Uninterruptible
   public static final void airavatReadBarrierDynamicDebug(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatReadBarrierInsideSRDebug(obj);
     } else {
       airavatReadBarrierOutsideSRDebug(obj);
@@ -503,7 +523,7 @@ public final class DIFC {
   @Entrypoint @Inline @Uninterruptible
   @NoNullCheck @NoBoundsCheck @NoSideEffects
   public static final void readBarrierDynamic(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       readBarrierInsideSR(obj);
     } else {
       readBarrierOutsideSR(obj);
@@ -513,7 +533,7 @@ public final class DIFC {
   @Entrypoint @Inline @Uninterruptible
   @NoNullCheck @NoBoundsCheck @NoSideEffects
   public static final void airavatReadBarrierDynamic(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatReadBarrierInsideSR(obj);
     }
   }
@@ -521,13 +541,13 @@ public final class DIFC {
   @Entrypoint @Uninterruptible
   public static final void readBarrierOutsideSRDebug(Object obj) {
     //profile("DIFC.readBarrierOutsideSR");
-    if (VM.VerifyAssertions) { VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+       if (VM.VerifyAssertions) { VM._assert(!((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     readBarrierOutsideSR(obj);
   }
 
   @Entrypoint @Uninterruptible
   public static final void airavatReadBarrierOutsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
   }
 
   @Entrypoint  @Inline  @UninterruptibleNoWarn
@@ -544,13 +564,13 @@ public final class DIFC {
   @Entrypoint @Uninterruptible
   public static final void readBarrierInsideSRDebug(Object obj) {
     //profile("DIFC.readBarrierInsideSR");
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     readBarrierInsideSR(obj);
   }
   
   @Entrypoint @Uninterruptible
   public static final void airavatReadBarrierInsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
     airavatReadBarrierInsideSR(obj);
   }
   
@@ -562,7 +582,7 @@ public final class DIFC {
       if (!MemoryManager.isLabeled(obj)) {
         /** The object has no secrecy or integrity label. We are allowed to read it unless the SR
           has some integrity label attached to it */
-        SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+        SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
         if(curState.integritySet != LabelSet.EMPTY)
           throw new DIFCException("Read access violation: SR with non-null integrity attempting to read unlabeled data");
       } else {
@@ -605,7 +625,7 @@ public final class DIFC {
         throw new DIFCException("Shouldn't happen");
       }
     } else {
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       if(!checkAllowed(secrecyLabels,integrityLabels,curState.secrecySet,curState.integritySet))
     	  throw new DIFCException("Read access violation");
     }
@@ -615,7 +635,7 @@ public final class DIFC {
 
   @Entrypoint @Uninterruptible
   public static final void writeBarrierDynamicDebug(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       writeBarrierInsideSRDebug(obj);
     } else {
       writeBarrierOutsideSRDebug(obj);
@@ -624,7 +644,7 @@ public final class DIFC {
 
   @Entrypoint @Uninterruptible
   public static final void airavatWriteBarrierDynamicDebug(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatWriteBarrierInsideSRDebug(obj);
     } else {
       airavatWriteBarrierOutsideSRDebug(obj);
@@ -634,7 +654,7 @@ public final class DIFC {
   @Entrypoint @Inline @Uninterruptible
   @NoNullCheck @NoBoundsCheck @NoSideEffects
   public static final void writeBarrierDynamic(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       writeBarrierInsideSR(obj);
     } else {
       writeBarrierOutsideSR(obj);
@@ -644,7 +664,7 @@ public final class DIFC {
   @Entrypoint @Inline @Uninterruptible
   @NoNullCheck @NoBoundsCheck @NoSideEffects
   public static final void airavatWriteBarrierDynamic(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatWriteBarrierInsideSR(obj);
     }
   }
@@ -652,13 +672,13 @@ public final class DIFC {
   @Entrypoint @Uninterruptible
   public static final void writeBarrierOutsideSRDebug(Object obj) {
     //profile("DIFC.readBarrierOutsideSR");
-    if (VM.VerifyAssertions) { VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(!((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     writeBarrierOutsideSR(obj);
   }
 
   @Entrypoint @Uninterruptible
   public static final void airavatWriteBarrierOutsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
   }
 
   @Entrypoint @Inline @UninterruptibleNoWarn
@@ -675,13 +695,13 @@ public final class DIFC {
   @Entrypoint @Uninterruptible
   public static final void writeBarrierInsideSRDebug(Object obj) {
     //profile("DIFC.readBarrierInsideSR");
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     writeBarrierInsideSR(obj);
   }
 
   @Entrypoint @Uninterruptible
   public static final void airavatWriteBarrierInsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
     airavatWriteBarrierInsideSR(obj);
   }
 
@@ -696,7 +716,7 @@ public final class DIFC {
          * TODO: 2) We have just de-classified an object or allocated an object and that object
          * is getting assigned in this write (this case is handled by allocation barrier?)*/
         //GreenThread currentThread = (GreenThread)GreenProcessor.getCurrentThread();
-        SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+	SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
         if(curState.secrecySet != LabelSet.EMPTY)
           throw new DIFCException("Write access violation: SR with non-null secrecy attempting to write unlabeled data");
       } else {
@@ -712,13 +732,13 @@ public final class DIFC {
   public static final void airavatWriteBarrierInsideSR(Object obj) {
     GreenThread currentThread = (GreenThread)GreenProcessor.getCurrentThread();
     /*Airavat code*/
-    if(isAiravat){
+    //if(isAiravat){
       if (MemoryManager.isLabeled(obj)) {
-        setObjectLabels(obj, currentThread.invocationAllocLabel, LabelSet.EMPTY);
+        checkInvocationWriteRule(getSecrecyLabels(obj));
       }else{
         throwAiravatException("Writing to unlabeled object");
       }
-    }
+    //}
   }
 
   @UninterruptibleNoWarn @Inline
@@ -743,7 +763,7 @@ public final class DIFC {
         throw new DIFCException("Shouldn't happen");
       }
     } else {
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       if(!checkAllowed(curState.secrecySet,curState.integritySet,secrecyLabels,integrityLabels))
         throw new DIFCException("Write access violation");
     }
@@ -751,7 +771,7 @@ public final class DIFC {
   
   @Entrypoint @Uninterruptible
   public static final void staticReadBarrierDynamicDebug(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       staticReadBarrierInsideSRDebug(fieldID);
     } else {
       staticReadBarrierOutsideSRDebug(fieldID);
@@ -760,7 +780,7 @@ public final class DIFC {
   
   @Entrypoint @Uninterruptible
   public static final void airavatStaticReadBarrierDynamicDebug(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatStaticReadBarrierInsideSRDebug(fieldID);
     } else {
       airavatStaticReadBarrierOutsideSRDebug(fieldID);
@@ -769,7 +789,7 @@ public final class DIFC {
   
   @Entrypoint @Inline @Uninterruptible
   public static final void staticReadBarrierDynamic(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       staticReadBarrierInsideSR(fieldID);
     } else {
       //staticReadBarrierOutsideSR(fieldID);
@@ -778,11 +798,11 @@ public final class DIFC {
   
   @Entrypoint @Inline @Uninterruptible
   public static final void airavatStaticReadBarrierDynamic(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatStaticReadBarrierInsideSR(fieldID);
-    } else {
+    } //else {
       //airavatStaticReadBarrierOutsideSR(fieldID);
-    }
+    //}
   }
   
   @Entrypoint @Uninterruptible
@@ -803,7 +823,9 @@ public final class DIFC {
 
   @Entrypoint @Inline @Uninterruptible
   public static final void airavatStaticReadBarrierInsideSR(int fieldID) {
-    staticBarrierSlowPath(fieldID, false);
+    //staticBarrierSlowPath(fieldID, false);
+    //Reads to statics are allowed since we do not allow writing to statics inside
+    //mapper invocation. Thus statics cannot store per invocation information.
   }
 
   @Entrypoint @Uninterruptible
@@ -819,7 +841,7 @@ public final class DIFC {
 
   @Entrypoint @Uninterruptible
   public static final void staticWriteBarrierDynamicDebug(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       staticWriteBarrierInsideSRDebug(fieldID);
     } else {
       staticWriteBarrierOutsideSRDebug(fieldID);
@@ -828,7 +850,7 @@ public final class DIFC {
   
   @Entrypoint @Uninterruptible
   public static final void airavatStaticWriteBarrierDynamicDebug(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatStaticWriteBarrierInsideSRDebug(fieldID);
     } else {
       airavatStaticWriteBarrierOutsideSRDebug(fieldID);
@@ -837,7 +859,7 @@ public final class DIFC {
   
   @Entrypoint @Inline @Uninterruptible
   public static final void staticWriteBarrierDynamic(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       staticWriteBarrierInsideSR(fieldID);
     } else {
       //staticWriteBarrierOutsideSR(fieldID);
@@ -846,11 +868,11 @@ public final class DIFC {
   
   @Entrypoint @Inline @Uninterruptible
   public static final void airavatStaticWriteBarrierDynamic(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatStaticWriteBarrierInsideSR(fieldID);
-    } else {
+    } //else {
       //airavatStaticWriteBarrierOutsideSR(fieldID);
-    }
+    //}
   }
   
   @Entrypoint @Uninterruptible
@@ -862,6 +884,7 @@ public final class DIFC {
   @Entrypoint @Uninterruptible
   public static final void airavatStaticWriteBarrierInsideSRDebug(int fieldID) {
     // do nothing: there is no non-debug version of this method
+    throwAiravatException("Writes to statics inside the mapper is not allowed");
   }
 
   @Entrypoint @Inline @Uninterruptible
@@ -915,7 +938,7 @@ public final class DIFC {
   
   @Entrypoint @Uninterruptible
   public static final void allocBarrierDynamicDebug(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       allocBarrierInsideSRDebug(obj);
     } else {
       allocBarrierOutsideSRDebug(obj);
@@ -924,7 +947,7 @@ public final class DIFC {
   
   @Entrypoint @Uninterruptible
   public static final void airavatAllocBarrierDynamicDebug(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatAllocBarrierInsideSRDebug(obj);
     } else {
       airavatAllocBarrierOutsideSRDebug(obj);
@@ -933,7 +956,7 @@ public final class DIFC {
   
   @Entrypoint @Inline @Uninterruptible
   public static final void allocBarrierDynamic(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
       allocBarrierInsideSR(obj);
     } else {
       //allocBarrierOutsideSR(obj);
@@ -942,19 +965,17 @@ public final class DIFC {
   
   @Entrypoint @Inline @Uninterruptible
   public static final void airavatAllocBarrierDynamic(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion) {
+    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
       airavatAllocBarrierInsideSR(obj);
-    } else {
-      //airavatAllocBarrierOutsideSR(obj);
-    }
+    } 
   }
   
   @Entrypoint @Uninterruptible
   public static final void allocBarrierOutsideSRDebug(Object obj) {
     //profile("DIFC.allocBarrierOutsideSR");
     if (VM.VerifyAssertions) {
-      VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion);
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+	VM._assert(!((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion);
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       VM._assert(curState.secrecyAllocLabels == LabelSet.EMPTY);
       VM._assert(curState.integrityAllocLabels == LabelSet.EMPTY);
     }
@@ -963,32 +984,26 @@ public final class DIFC {
 
   @Entrypoint @Uninterruptible
   public static final void airavatAllocBarrierOutsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) {
-      VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion);
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
-      VM._assert(curState.secrecyAllocLabels == LabelSet.EMPTY);
-      VM._assert(curState.integrityAllocLabels == LabelSet.EMPTY);
-    }
     // there is no non-debug version of this method
   }
 
   @Entrypoint @Uninterruptible
   public static final void allocBarrierInsideSRDebug(Object obj) {
     //profile("DIFC.allocBarrierInsideSR");
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     allocBarrierInsideSR(obj);
   }
 
   @Entrypoint @Uninterruptible
   public static final void airavatAllocBarrierInsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
     airavatAllocBarrierInsideSR(obj);
   }
 
   @Entrypoint @Inline @Uninterruptible
   public static final void allocBarrierInsideSR(Object obj) {
     // inline this common, cheaper path
-    SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
     if(curState.secrecyAllocLabels == null &&
         curState.integrityAllocLabels == null){
       //Since the user did not pass labels, lets use the default SR label
@@ -1010,6 +1025,8 @@ public final class DIFC {
     if (MemoryManager.isLabeled(obj)) {
       GreenThread currentThread = (GreenThread)GreenProcessor.getCurrentThread();
       setObjectLabels(obj, currentThread.invocationAllocLabel, LabelSet.EMPTY);
+    } else{
+      VM.sysWriteln("Error: Allocating unlabeled object inside mapper invocation");
     }
   }
 
@@ -1024,7 +1041,7 @@ public final class DIFC {
       VM.sysWriteln();
     }
     */
-    SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
     if(checkAllocLabels()){
       //Use the labels passed by the user 
       if (MemoryManager.isLabeled(obj)) {
@@ -1045,9 +1062,9 @@ public final class DIFC {
     
     //profile("DIFC.shouldAllocLabeledObjectInSR");
 
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion); }
+    if (VM.VerifyAssertions) { VM._assert(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     
-    SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
     if (curState.secrecySet != null &&
         curState.secrecyAllocLabels != LabelSet.EMPTY) {
       return true;
@@ -1060,7 +1077,7 @@ public final class DIFC {
     
     //profile("DIFC.shouldAllocLabeledObjectInSRSlowPath");
 
-    SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+    SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
     if (curState.secrecyAllocLabels == null &&
         curState.integrityAllocLabels == null &&
         curState.secrecySet == LabelSet.EMPTY &&
@@ -1285,7 +1302,7 @@ public final class DIFC {
         oldIntegrityLabels = getIntegrityLabels(obj);
       }
       // check this is okay
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       if(!newSecrecyLabels.checkInUnion(oldSecrecyLabels, curState.plusCapabilitySet))
         throw new DIFCException("Label change not allowed - lacks capability to add all secrecy labels");
       if(!oldSecrecyLabels.checkInUnion(newSecrecyLabels, curState.minusCapabilitySet))
@@ -1394,12 +1411,14 @@ public final class DIFC {
     public static long OScreateLabel(int type, int region){
       
       //profile("DIFC.OScreateLabel");
-
-      if(region==REGION_SELF)
-        return sysCall.sysCreateAndAddLabel(type,1);
-      if(region==REGION_GROUP)
-        return sysCall.sysCreateAndAddLabel(type,2);
-      return sysCall.sysCreateAndAddLabel(type,0);
+	long rv;
+	if(region==REGION_SELF)
+	    rv = sysCall.sysCreateAndAddLabel(type,1);
+	else if(region==REGION_GROUP)
+	    rv = sysCall.sysCreateAndAddLabel(type,2);
+	else 
+	    rv = sysCall.sysCreateAndAddLabel(type,0);
+	return rv;
     }
     /*Makes the system call so that the OS drops the capability*/
     public static void OSdropCapability(long[] label, int type, int permanent) throws DIFCException{
@@ -1420,8 +1439,8 @@ public final class DIFC {
       if(!BOOT_COMPLETE)
         return 0;
       /*Only secure-regions have labels*/
-      if(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion){
-        SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+      if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
+	SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
         int err=sysCall.sysPassLabels(curState.secrecySet.getLongLabels(),curState.secrecySet.len,curState.integritySet.getLongLabels(),curState.integritySet.len);
         if(err>=0)
           curState.RESTORE_LABELS=true;
@@ -1485,9 +1504,9 @@ public final class DIFC {
     public static void initializeThreadCapability(LabelSet capability, int type){
       
       //profile("DIFC.initializeThreadCapability");
-
-    	if(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion){
-        SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState; 
+	
+	if(!((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
+	SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
     		if(type==PLUS_CAPABILITY || type==BOTH_CAPABILITY) 
     			curState.plusCapabilitySet=capability;
     		if(type==MINUS_CAPABILITY || type==BOTH_CAPABILITY)
@@ -1516,7 +1535,7 @@ public final class DIFC {
       
       //profile("DIFC.setAllocationLabelsInternal");
 
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
       curState.secrecyAllocLabels = sSet;
       curState.integrityAllocLabels = iSet;
     }
@@ -1531,7 +1550,7 @@ public final class DIFC {
       
       //profile("DIFC.checkAllocLabels");
       
-      SRState curState=Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).currentSRState;
+      SRState curState=((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).currentSRState;
      // if(GreenProcessor.getCurrentProcessor().inSecureRegion){
         if(!checkAllowed(curState.secrecySet,curState.integritySet,curState.secrecyAllocLabels,curState.integrityAllocLabels))
           throw new DIFCException("Object does not have labels compatible to secure-region");

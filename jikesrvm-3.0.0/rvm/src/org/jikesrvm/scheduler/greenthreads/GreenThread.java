@@ -113,7 +113,8 @@ public class GreenThread extends RVMThread {
   
   /*Airavat: include the current invocation number*/
   public long invocation_number;
-  public LabelSet invocationAllocLabel;
+  public boolean inMapperRegion; //airavats checks occur only when this var. is true
+  public LabelSet invocationAllocLabel = LabelSet.EMPTY;
   /**
    * Create a thread with default stack and with the given name.
    */
@@ -166,9 +167,9 @@ public class GreenThread extends RVMThread {
       currentSRState=new SRState(LabelSet.EMPTY, LabelSet.EMPTY);
     }
     */
-    if(DIFC.isAiravat){
+    /*if(DIFC.isAiravat){
       invocationAllocLabel= LabelSet.EMPTY;
-    }
+    }*/
   }
 
   /*

@@ -688,23 +688,39 @@ public final class MemoryManager implements HeapLayoutConstants, Constants {
   // DIFC: decide whether to allocate a labeled object
   @Inline
   private static boolean allocLabeled(int site) {
-    if (DIFC.enabled && VM.difcBarriers) {
-      // if using dynamic barriers, make dynamic decision; otherwise static decision
-      if (site == LABELED) {
-        boolean inSR;
-        if (DIFC.dynamicBarriers) {
-          inSR = Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion;
-        } else {
-          inSR = true;
-        }
-        if (inSR) {
-          return DIFC.shouldAllocLabeledObjectInSR();
-        }
+    //decide whether we are using Airavat or Laminar
+    if (DIFC.enabled && VM.difcBarriers && site == LABELED) {
+      if(DIFC.isAiravat)
+        return allocAiravatLabeled(site);
+      else 
+        return allocLaminarLabeled(site);
       }
-    }
     return false;
   }
   
+  @Inline
+  private static boolean allocLaminarLabeled(int site) {
+    // if using dynamic barriers, make dynamic decision; otherwise static decision
+    boolean inSR;
+    if (DIFC.dynamicBarriers) {
+	inSR = ((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion;
+    } else {
+      inSR = true;
+    }
+    if (inSR) {
+      return DIFC.shouldAllocLabeledObjectInSR();
+    }
+    return false;
+  }
+
+  @Inline
+  private static boolean allocAiravatLabeled(int site) {
+    if (DIFC.dynamicBarriers) {
+      return Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion;
+    }
+    return true;
+  }
+
   /**
    * Allocate an array object. This is the interruptible component, including throwing
    * an OutOfMemoryError for arrays that are too large.

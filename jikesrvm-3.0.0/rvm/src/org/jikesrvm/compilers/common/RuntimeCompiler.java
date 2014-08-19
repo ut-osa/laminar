@@ -42,6 +42,7 @@ import org.jikesrvm.runtime.Time;
 import org.jikesrvm.scheduler.DIFC;
 import org.jikesrvm.scheduler.Scheduler;
 import org.jikesrvm.scheduler.greenthreads.GreenProcessor;
+import org.jikesrvm.scheduler.greenthreads.GreenThread;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.SecureMethod;
 
@@ -652,7 +653,7 @@ public class RuntimeCompiler implements Constants, Callbacks.ExitMonitor {
           VM.sysWriteln(" will be compiled with DYNAMIC BARRIERS");
         }
       } else if (method.getAnnotation(SecureMethod.class) != null ||
-                 GreenProcessor.getCurrentProcessor().inSecureRegion && DIFC.addBarriers(method)) {
+                 ((GreenThread) GreenProcessor.getCurrentProcessor().getCurrentThread()).inSecureRegion && DIFC.addBarriers(method)) {
         if (DIFC.verbosity >= 2) {
           VM.sysWrite("Method ");
           VM.sysWrite(method);
