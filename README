@@ -1,0 +1,38 @@
+--------------------
+Laminar Version 0.1
+--------------------
+
+For Licensing information, see LICENSE.
+For contributor list, see AUTHORS.
+
+-----------------------------
+Getting Started with Laminar
+----------------------------
+
+This is a pre-alpha release of Laminar.
+
+Laminar is a new system that enforces the decentralized information
+flow control model. It can enforce fine grained policies, has low overheads and
+introduces *security regions* that make it easier to program for security.
+More details can be found in our PLDI'09 paper 
+"Laminar: Practical Fine-Grained Decentralized Information Flow Control".
+
+The current distribution consists of two patches:
+1)laminar-os.patch : The patch has been tested on Linux 2.6.22.6
+2)laminar-jvm.patch : The patch has been tested on Jikes 3.0.0
+
+-------------
+Compilation:
+-------------
+
+1) For Laminar OS: Download Linux 2.6.22.6 and apply laminar-os.patch
+   The build process is identical to that of Linux.
+
+2) For Laminar JVM: Download Jikes 3.0.0 and apply laminar-jvm.patch
+   Use a configuration file with the suffix "_difc" (e.g. -Dconfig.name=FastAdaptiveGenMS_difc)
+   The build process is identical to that of Jikes RVM.
+
+Need help?
+------------
+You can email laminar@utlists.utexas.edu with questions or comments.
+
