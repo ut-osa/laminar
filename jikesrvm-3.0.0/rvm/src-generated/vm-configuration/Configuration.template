@@ -119,4 +119,24 @@ public abstract class Configuration {
    * run Jikes with only one processor (-X:processors=1).
    */
   public static final boolean AlignmentChecking = @_RVM_WITH_ALIGNMENT_CHECKING_@;
+  
+  // DIFC: build-time flags
+  public static final boolean difcEnabled = @_RVM_WITH_DIFC_ENABLED_@;
+  public static final boolean difcBarriers = @_RVM_WITH_DIFC_BARRIERS_@;
+  public static final boolean difcVerbose = @_RVM_WITH_DIFC_VERBOSE_@;
+  public static final boolean difcProfile = @_RVM_WITH_DIFC_PROFILE_@;
+  public static final boolean difcNoOptBarriers = @_RVM_WITH_DIFC_NO_OPT_BARRIERS_@;
+  public static final boolean difcNoRedundancyElimination = @_RVM_WITH_DIFC_NO_REDUNDANCY_ELIMINATION_@;
+  public static final boolean difcNoLateRedundancyElimination = @_RVM_WITH_DIFC_NO_LATE_REDUNDANCY_ELIMINATION_@;
+  public static final boolean difcNoReadOrWriteBarriers = @_RVM_WITH_DIFC_NO_READ_OR_WRITE_BARRIERS_@;
+  public static final boolean difcNoRWBarrierContents = @_RVM_WITH_DIFC_NO_RW_BARRIER_CONTENTS_@;
+  public static final boolean difcNoStaticOrAllocBarriers = @_RVM_WITH_DIFC_NO_STATIC_OR_ALLOC_BARRIERS_@;
+  public static final boolean difcNoInlinedBarriers = @_RVM_WITH_DIFC_NO_INLINED_BARRIERS_@;
+  public static final boolean difcNoSlowPath = @_RVM_WITH_DIFC_NO_SLOW_PATH_@;
+  public static final boolean difcNoSubsetChecks = @_RVM_WITH_DIFC_NO_SUBSET_CHECKS_@;
+  public static final boolean difcDynamicBarriers = @_RVM_WITH_DIFC_DYNAMIC_BARRIERS_@;
+  public static final boolean difcLibraries = @_RVM_WITH_DIFC_LIBRARIES_@;
+  
+  //Airavat
+  public static final boolean airavatEnabled = @_RVM_WITH_AIRAVAT_ENABLED_@;
 }

@@ -23,6 +23,9 @@ import org.jikesrvm.runtime.ArchEntrypoints;
 import org.jikesrvm.runtime.Entrypoints;
 import org.jikesrvm.runtime.Magic;
 import org.jikesrvm.runtime.Time;
+import org.jikesrvm.scheduler.DIFC;
+import org.jikesrvm.scheduler.LabelSet;
+import org.jikesrvm.scheduler.SRState;
 import org.jikesrvm.scheduler.Lock;
 import org.jikesrvm.scheduler.Processor;
 import org.jikesrvm.scheduler.ProcessorLock;
@@ -91,7 +94,26 @@ public class GreenThread extends RVMThread {
    */
   public GreenProcessor processorAffinity;
 
-
+  /**
+   * DIFC: whether current thread is in a secure region
+   * Capabilities are in arrays since we need to temporary
+   * store the Threads capabilities while inside a secure region
+   */
+  public boolean inSecureRegion;
+  /*Tracks whether a system call was made inside the SR. If yes, then we need to restore the 
+   * labels at the end of the SR. 
+   */
+  public boolean RESTORE_LABELS=false;
+  /* Also contains the capabilities that are shared by all threads*/
+  public static LabelSet commonPlusCapabilitySet;
+  public static LabelSet commonMinusCapabilitySet;
+  public long startSRCycles; // value from RDTSC when we started the current SR
+  /*Stack to store and restore the labels of nested SR's*/
+  public SRState currentSRState = new SRState(LabelSet.EMPTY, LabelSet.EMPTY);
+  
+  /*Airavat: include the current invocation number*/
+  public long invocation_number;
+  public LabelSet invocationAllocLabel;
   /**
    * Create a thread with default stack and with the given name.
    */
@@ -134,6 +156,19 @@ public class GreenThread extends RVMThread {
     super(stack, thread, name, daemon, system, priority);
     // for load balancing
     chosenProcessorId = (VM.runningVM ? Processor.getCurrentProcessorId() : 0);
+    
+    // DIFC: initialize stuff
+    // DIFC: TODO: can be removed because these variables are initialized where they're declared
+    /*
+    if (DIFC.enabled) {
+      inSecureRegion=false;
+      // DIFC: TODO: testing this
+      currentSRState=new SRState(LabelSet.EMPTY, LabelSet.EMPTY);
+    }
+    */
+    if(DIFC.isAiravat){
+      invocationAllocLabel= LabelSet.EMPTY;
+    }
   }
 
   /*

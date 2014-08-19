@@ -305,6 +305,13 @@ public abstract class AnnotatedElement implements java.lang.reflect.AnnotatedEle
   }
 
   /**
+   * DIFC: Return true if this element has a NoSideEffects annotation.
+   */
+  public final boolean hasNoSideEffectsAnnotation() {
+    return isAnnotationPresent(org.vmmagic.pragma.NoSideEffects.class);
+  }
+
+  /**
    * Return true if this element has a NoNullCheck annotation.
    * @see org.vmmagic.pragma.NoNullCheck
    */

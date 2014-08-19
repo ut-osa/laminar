@@ -19,9 +19,11 @@ import org.jikesrvm.SizeConstants;
 import org.jikesrvm.classloader.RVMArray;
 import org.jikesrvm.classloader.RVMClass;
 import org.jikesrvm.classloader.RVMType;
+import org.jikesrvm.mm.mminterface.MemoryManager;
 import org.jikesrvm.mm.mminterface.MemoryManagerConstants;
 import org.jikesrvm.runtime.Magic;
 import org.jikesrvm.runtime.Memory;
+import org.jikesrvm.scheduler.DIFC;
 import org.jikesrvm.scheduler.Lock;
 import org.jikesrvm.scheduler.ThinLock;
 import org.jikesrvm.scheduler.RVMThread;
@@ -300,7 +302,16 @@ public class JavaHeader implements JavaHeaderConstants {
         }
       }
     }
-
+    
+    // DIFC: add 8 bytes
+    // DIFC: TODO: don't hard-code 8
+    if (DIFC.enabled &&
+        VM.difcBarriers &&
+        !VM.difcNoStaticOrAllocBarriers &&
+        MemoryManager.isLabeled(start)) {
+      return start.plus(OBJECT_REF_OFFSET).plus(8).toObjectReference();
+    }
+    
     return start.plus(OBJECT_REF_OFFSET).toObjectReference();
   }
 

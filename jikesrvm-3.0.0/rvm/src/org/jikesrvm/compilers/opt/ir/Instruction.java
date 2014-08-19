@@ -876,6 +876,9 @@ public final class Instruction implements Constants, Operators, OptConstants {
   public boolean isPureCall() {
     if (operator.isCall()) {
       MethodOperand methOp = Call.getMethod(this);
+      // DIFC: we DON'T include methods without side effects, since these method are called
+      // in order to do optimizations to methods that can be evaluated once
+      // (which doesn't apply to DIFC instrumentation)
       if (methOp != null && methOp.hasPreciseTarget() && methOp.getTarget().isPure()) {
         return true;
       }
@@ -892,7 +895,8 @@ public final class Instruction implements Constants, Operators, OptConstants {
   public boolean isNonPureCall() {
     if (operator.isCall()) {
       MethodOperand methOp = Call.getMethod(this);
-      boolean isPure = methOp != null && methOp.hasPreciseTarget() && methOp.getTarget().isPure();
+      // DIFC: also for methods without side effects
+      boolean isPure = methOp != null && methOp.hasPreciseTarget() && (methOp.getTarget().isPure() || methOp.getTarget().hasNoSideEffects());
       return !isPure;
     }
     return false;

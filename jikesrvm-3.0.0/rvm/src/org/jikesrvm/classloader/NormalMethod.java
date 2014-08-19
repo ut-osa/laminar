@@ -121,6 +121,9 @@ public final class NormalMethod extends RVMMethod implements BytecodeConstants {
    */
   private final int[] lineNumberMap;
 
+  /** DIFC: does this method execute when we're in a secure region? */
+  public boolean staticallyInSecureRegion;
+  
   // Extra fields for on-stack replacement
   /** Possible OSR bytecode array consisting of prologue and original bytecodes */
   private static final HashMapRVM<NormalMethod, byte[]> synthesizedBytecodes =

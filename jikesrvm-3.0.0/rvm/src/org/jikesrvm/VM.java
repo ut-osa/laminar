@@ -38,6 +38,8 @@ import org.jikesrvm.runtime.RuntimeEntrypoints;
 import org.jikesrvm.runtime.SysCall;
 
 import static org.jikesrvm.runtime.SysCall.sysCall;
+
+import org.jikesrvm.scheduler.DIFC;
 import org.jikesrvm.scheduler.Lock;
 import org.jikesrvm.scheduler.MainThread;
 import org.jikesrvm.scheduler.Processor;
@@ -491,6 +493,9 @@ public class VM extends Properties implements Constants, ExitStatus {
       SysCall.sysCall.sysEnableAlignmentChecking();
     }
 
+    // DIFC: initialize here
+    DIFC.init();
+    
     // Schedule "main" thread for execution.
     if (verboseBoot >= 2) VM.sysWriteln("Creating main thread");
     // Create main thread.

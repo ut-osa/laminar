@@ -39,7 +39,11 @@ import org.jikesrvm.compilers.opt.driver.OptimizationPlanElement;
 import org.jikesrvm.compilers.opt.driver.OptimizationPlanner;
 import org.jikesrvm.compilers.opt.driver.OptimizingCompiler;
 import org.jikesrvm.runtime.Time;
+import org.jikesrvm.scheduler.DIFC;
 import org.jikesrvm.scheduler.Scheduler;
+import org.jikesrvm.scheduler.greenthreads.GreenProcessor;
+import org.vmmagic.pragma.Inline;
+import org.vmmagic.pragma.SecureMethod;
 
 /**
  * Harness to select which compiler to dynamically
@@ -638,6 +642,26 @@ public class RuntimeCompiler implements Constants, Callbacks.ExitMonitor {
    * @return its compiled method.
    */
   public static CompiledMethod compile(NormalMethod method) {
+    
+    // DIFC: if invoked from a secure region or marked @SecureMethod, then mark this method accordingly
+    if (DIFC.enabled) {
+      if (DIFC.dynamicBarriers && DIFC.addBarriers(method)) {
+        if (DIFC.verbosity >= 2) {
+          VM.sysWrite("Method ");
+          VM.sysWrite(method);
+          VM.sysWriteln(" will be compiled with DYNAMIC BARRIERS");
+        }
+      } else if (method.getAnnotation(SecureMethod.class) != null ||
+                 GreenProcessor.getCurrentProcessor().inSecureRegion && DIFC.addBarriers(method)) {
+        if (DIFC.verbosity >= 2) {
+          VM.sysWrite("Method ");
+          VM.sysWrite(method);
+          VM.sysWriteln(" will be compiled as INSIDE a SR");
+        }
+        method.staticallyInSecureRegion = true;
+      }
+    }
+
     if (VM.BuildForAdaptiveSystem) {
       CompiledMethod cm;
       if (!Controller.enabled) {

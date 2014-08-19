@@ -627,9 +627,12 @@ public final class JikesRVMSocketImpl extends SocketImpl implements SizeConstant
       Socket.setSocketImplFactory(new SocketImplFactory() {
         public SocketImpl createSocketImpl() { return new JikesRVMSocketImpl(); }
       });
+      // DIFC: a fix of sorts to get sockets working
+      /*
       ServerSocket.setSocketFactory(new SocketImplFactory() {
         public SocketImpl createSocketImpl() { return new JikesRVMSocketImpl(); }
       });
+      */
       DatagramSocket.setDatagramSocketImplFactory(new DatagramSocketImplFactory() {
         public DatagramSocketImpl createDatagramSocketImpl() {
           throw new UnimplementedError("Need to implement JikesRVMDatagramSocketImpl");

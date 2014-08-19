@@ -168,4 +168,8 @@ import org.vmmagic.pragma.*;
    * true if yielded.
    */
   public abstract boolean yieldpoint();
+  
+  /** DIFC: stop controller if requested */
+  @Interruptible
+  public abstract void stopControllerIfRequested();
 }

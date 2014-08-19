@@ -19,6 +19,7 @@ import org.jikesrvm.VM;
 import org.jikesrvm.classloader.RVMField;
 import org.jikesrvm.classloader.RVMMethod;
 import org.jikesrvm.classloader.NormalMethod;
+import org.jikesrvm.scheduler.LabelSet;
 
 /**
  * Fields and methods of the virtual machine that are needed by
@@ -273,6 +274,151 @@ public class Entrypoints {
   public static final NormalMethod getstaticReadBarrierMethod =
       getMethod(org.jikesrvm.mm.mminterface.MemoryManager.class, "getstaticReadBarrier", "(Lorg/vmmagic/unboxed/Offset;I)Ljava/lang/Object;");
 
+  // DIFC: barriers
+
+  public static final NormalMethod difcReadBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "readBarrierInsideSR", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcReadBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "readBarrierOutsideSR", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcReadBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "readBarrierDynamic", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod difcWriteBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "writeBarrierInsideSR", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcWriteBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "writeBarrierOutsideSR", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcWriteBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "writeBarrierDynamic", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod difcStaticReadBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticReadBarrierInsideSR", "(I)V");
+  /*public static final NormalMethod difcStaticReadBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticReadBarrierOutsideSR", "(I)V");*/
+  public static final NormalMethod difcStaticReadBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticReadBarrierDynamic", "(I)V");
+  
+  public static final NormalMethod difcStaticWriteBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticWriteBarrierInsideSR", "(I)V");
+  /*public static final NormalMethod difcStaticWriteBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticWriteBarrierOutsideSR", "(I)V");*/
+  public static final NormalMethod difcStaticWriteBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticWriteBarrierDynamic", "(I)V");
+  
+  public static final NormalMethod difcAllocBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "allocBarrierInsideSR", "(Ljava/lang/Object;)V");
+  /*public static final NormalMethod difcAllocBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "allocBarrierOutsideSR", "(Ljava/lang/Object;)V");*/
+  public static final NormalMethod difcAllocBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "allocBarrierDynamic", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod difcReadBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "readBarrierInsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcReadBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "readBarrierOutsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcReadBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "readBarrierDynamicDebug", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod difcWriteBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "writeBarrierInsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcWriteBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "writeBarrierOutsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcWriteBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "writeBarrierDynamicDebug", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod difcStaticReadBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticReadBarrierInsideSRDebug", "(I)V");
+  public static final NormalMethod difcStaticReadBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticReadBarrierOutsideSRDebug", "(I)V");
+  public static final NormalMethod difcStaticReadBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticReadBarrierDynamicDebug", "(I)V");
+  
+  public static final NormalMethod difcStaticWriteBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticWriteBarrierInsideSRDebug", "(I)V");
+  public static final NormalMethod difcStaticWriteBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticWriteBarrierOutsideSRDebug", "(I)V");
+  public static final NormalMethod difcStaticWriteBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "staticWriteBarrierDynamicDebug", "(I)V");
+  
+  public static final NormalMethod difcAllocBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "allocBarrierInsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcAllocBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "allocBarrierOutsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod difcAllocBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "allocBarrierDynamicDebug", "(Ljava/lang/Object;)V");
+
+  // Airavat: barriers
+
+  public static final NormalMethod airavatReadBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatReadBarrierInsideSR", "(Ljava/lang/Object;)V");
+  /*public static final NormalMethod airavatReadBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatReadBarrierOutsideSR", "(Ljava/lang/Object;)V");*/
+  public static final NormalMethod airavatReadBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatReadBarrierDynamic", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod airavatWriteBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatWriteBarrierInsideSR", "(Ljava/lang/Object;)V");
+  /*public static final NormalMethod airavatWriteBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatWriteBarrierOutsideSR", "(Ljava/lang/Object;)V");*/
+  public static final NormalMethod airavatWriteBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatWriteBarrierDynamic", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod airavatStaticReadBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticReadBarrierInsideSR", "(I)V");
+  /*public static final NormalMethod airavatStaticReadBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticReadBarrierOutsideSR", "(I)V");*/
+  public static final NormalMethod airavatStaticReadBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticReadBarrierDynamic", "(I)V");
+  
+  public static final NormalMethod airavatStaticWriteBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticWriteBarrierInsideSR", "(I)V");
+  /*public static final NormalMethod airavatStaticWriteBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticWriteBarrierOutsideSR", "(I)V");*/
+  public static final NormalMethod airavatStaticWriteBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticWriteBarrierDynamic", "(I)V");
+  
+  public static final NormalMethod airavatAllocBarrierInsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatAllocBarrierInsideSR", "(Ljava/lang/Object;)V");
+  /*public static final NormalMethod airavatAllocBarrierOutsideSRMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatAllocBarrierOutsideSR", "(Ljava/lang/Object;)V");*/
+  public static final NormalMethod airavatAllocBarrierDynamicMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatAllocBarrierDynamic", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod airavatReadBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatReadBarrierInsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod airavatReadBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatReadBarrierOutsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod airavatReadBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatReadBarrierDynamicDebug", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod airavatWriteBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatWriteBarrierInsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod airavatWriteBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatWriteBarrierOutsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod airavatWriteBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatWriteBarrierDynamicDebug", "(Ljava/lang/Object;)V");
+  
+  public static final NormalMethod airavatStaticReadBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticReadBarrierInsideSRDebug", "(I)V");
+  public static final NormalMethod airavatStaticReadBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticReadBarrierOutsideSRDebug", "(I)V");
+  public static final NormalMethod airavatStaticReadBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticReadBarrierDynamicDebug", "(I)V");
+  
+  public static final NormalMethod airavatStaticWriteBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticWriteBarrierInsideSRDebug", "(I)V");
+  public static final NormalMethod airavatStaticWriteBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticWriteBarrierOutsideSRDebug", "(I)V");
+  public static final NormalMethod airavatStaticWriteBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatStaticWriteBarrierDynamicDebug", "(I)V");
+  
+  public static final NormalMethod airavatAllocBarrierInsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatAllocBarrierInsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod airavatAllocBarrierOutsideSRDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatAllocBarrierOutsideSRDebug", "(Ljava/lang/Object;)V");
+  public static final NormalMethod airavatAllocBarrierDynamicDebugMethod =
+    getMethod(org.jikesrvm.scheduler.DIFC.class, "airavatAllocBarrierDynamicDebug", "(Ljava/lang/Object;)V");
+
+  
   public static final NormalMethod modifyCheckMethod =
       getMethod(org.jikesrvm.mm.mminterface.MemoryManager.class, "modifyCheck", "(Ljava/lang/Object;)V");
 

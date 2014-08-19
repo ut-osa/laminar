@@ -617,6 +617,11 @@ public abstract class RVMMethod extends RVMMember implements BytecodeConstants {
     return hasPureAnnotation();
   }
 
+  /** DIFC: method has no side effects? */
+  public final boolean hasNoSideEffects() {
+    return hasNoSideEffectsAnnotation();
+  }
+
   /**
    * Has this method been marked as forbidden to inline?
    * ie., it is marked with the <CODE>NoInline</CODE> annotation or

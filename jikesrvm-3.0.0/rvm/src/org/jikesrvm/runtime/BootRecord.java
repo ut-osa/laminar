@@ -245,7 +245,14 @@ public class BootRecord {
   public Address sysSetFdCloseOnExecIP;
 
   public Address sysAccessIP;
-
+  
+  // DIFC: system call for getting labels of a file
+  public Address sysPassLabelsIP;
+  public Address sysDropCapabilityIP;
+  public Address sysCreateAndAddLabelIP;
+  public Address sysCreateLabeledDirectoryIP;
+  public Address sysCreateLabeledFileIP;
+  public Address sysReplaceLabelsTCBIP;
   // mmap - memory mapping
   public Address sysMMapIP;
   public Address sysMMapErrnoIP;

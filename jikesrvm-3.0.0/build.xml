@@ -911,6 +911,24 @@ Check to make sure all required properties are specified. This includes properti
         <filter token="_PORTABLE_NATIVE_SYNC_" value="${config.portable-native-sync}"/>
         <filter token="_RVM_WITH_HARMONY_" value="${pp_RVM_WITH_HARMONY}"/>
         <filter token="_RVM_WITH_GNU_CLASSPATH_" value="${pp_RVM_WITH_GNU_CLASSPATH}"/>
+        <!-- DIFC: build-time options -->
+        <filter token="_RVM_WITH_DIFC_ENABLED_" value = "${config.include.difc.enabled}"/>
+        <filter token="_RVM_WITH_DIFC_BARRIERS_" value="${config.include.difc.barriers}"/>
+        <filter token="_RVM_WITH_DIFC_VERBOSE_" value="${config.include.difc.verbose}"/>
+        <filter token="_RVM_WITH_DIFC_PROFILE_" value="${config.include.difc.profile}"/>
+        <filter token="_RVM_WITH_DIFC_NO_OPT_BARRIERS_" value="${config.include.difc.no-opt-barriers}"/>
+        <filter token="_RVM_WITH_DIFC_NO_REDUNDANCY_ELIMINATION_" value="${config.include.difc.no-redundancy-elimination}"/>
+        <filter token="_RVM_WITH_DIFC_NO_LATE_REDUNDANCY_ELIMINATION_" value="${config.include.difc.no-late-redundancy-elimination}"/>
+        <filter token="_RVM_WITH_DIFC_NO_READ_OR_WRITE_BARRIERS_" value="${config.include.difc.no-read-or-write-barriers}"/>
+        <filter token="_RVM_WITH_DIFC_NO_RW_BARRIER_CONTENTS_" value="${config.include.difc.no-rw-barrier-contents}"/>
+        <filter token="_RVM_WITH_DIFC_NO_STATIC_OR_ALLOC_BARRIERS_" value="${config.include.difc.no-static-or-alloc-barriers}"/>
+        <filter token="_RVM_WITH_DIFC_NO_INLINED_BARRIERS_" value="${config.include.difc.no-inlined-barriers}"/>
+        <filter token="_RVM_WITH_DIFC_NO_SLOW_PATH_" value="${config.include.difc.no-slow-path}"/>
+        <filter token="_RVM_WITH_DIFC_NO_SUBSET_CHECKS_" value="${config.include.difc.no-subset-checks}"/>
+        <filter token="_RVM_WITH_DIFC_DYNAMIC_BARRIERS_" value="${config.include.difc.dynamic-barriers}"/>
+        <filter token="_RVM_WITH_DIFC_LIBRARIES_" value="${config.include.difc.libraries}"/>
+      	<!-- AIRAVAT: build-time options -->
+      	<filter token="_RVM_WITH_AIRAVAT_ENABLED_" value = "${config.include.airavat.enabled}"/>
       </filterset>
     </copy>
 

@@ -14,6 +14,9 @@ package org.jikesrvm.mm.mmtk;
 
 import org.jikesrvm.ArchitectureSpecific;
 import org.jikesrvm.VM;
+import org.jikesrvm.adaptive.controller.Controller;
+import org.jikesrvm.adaptive.util.AOSExternalOptions;
+import org.jikesrvm.adaptive.util.AOSOptions;
 import org.jikesrvm.classloader.Atom;
 import org.jikesrvm.classloader.RVMMethod;
 import org.jikesrvm.compilers.common.CompiledMethod;
@@ -324,6 +327,17 @@ public class Collection extends org.mmtk.vm.Collection implements org.mmtk.utili
     return false;
   }
 
+  /** DIFC: stop controller if requested */
+  @Interruptible
+  public void stopControllerIfRequested() {
+    if (VM.BuildForAdaptiveSystem) {
+      if (Controller.options.HARNESS_STOPS_CONTROLLER) {
+        Controller.stop();
+      }
+    }
+  }
+
+  
   /***********************************************************************
    *
    * Finalizers

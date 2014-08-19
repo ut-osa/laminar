@@ -144,6 +144,38 @@ public abstract class SysCall {
   @SysCallTemplate
   public abstract int sysAccess(byte[] name, int kind);
 
+  /* DIFC: pass current labels to the OS*/
+  @SysCallTemplate
+  public abstract int sysPassLabels(long[] secrecySet, int sec_len, long[] integritySet, int int_len);
+
+  /*DIFC: unchecked replace label function*/ 
+  @SysCallTemplate
+  public abstract int sysReplaceLabelsTCB(long[] secrecySet, int sec_len, long[] integritySet, int int_len);
+
+  /* DIFC: ask the OS to drop the thread capability
+   * flag=0: drop permanently
+   * flag=1: drop temporarily
+   */
+  @SysCallTemplate
+  public abstract int sysDropCapability(long[] labels, int length, int type, int flag);
+
+  /* DIFC: ask the OS to create a new capability/label and add it to the
+   * threads capability set or the program's capability set (i.e shared by all threads)
+   * region=0: add only to the thread
+   * region=1: add to the program
+   * type=0: plusCapabilty: type=1: minusCapability: type=2: both-capability
+   */
+  @SysCallTemplate
+  public abstract int sysCreateAndAddLabel(int type, int region);
+
+  /*Custom call to create a labeled directory*/
+  @SysCallTemplate
+  public abstract int sysCreateLabeledDirectory(byte[] pname, int mode, long[] secrecySet, int sec_len, long[] integritySet, int int_len);
+
+  /*Custom call to create a labeled directory*/
+  @SysCallTemplate
+  public abstract int sysCreateLabeledFile(byte[] pname, int mode, long[] secrecySet, int sec_len, long[] integritySet, int int_len);
+
   // mmap - memory mapping
   @SysCallTemplate
   public abstract Address sysMMap(Address start, Extent length, int protection, int flags, int fd, Offset offset);

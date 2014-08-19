@@ -209,6 +209,9 @@ public abstract class TraceLocal extends TransitiveClosure implements Constants 
       return Plan.ploSpace.isLive(object);
     else if (space == Plan.nonMovingSpace)
       return Plan.nonMovingSpace.isLive(object);
+    // DIFC: labeled space
+    else if (space == Plan.labeledSpace)
+      return Plan.labeledSpace.isLive(object);
     else if (Plan.USE_CODE_SPACE && space == Plan.smallCodeSpace)
       return Plan.smallCodeSpace.isLive(object);
     else if (Plan.USE_CODE_SPACE && space == Plan.largeCodeSpace)
@@ -266,6 +269,30 @@ public abstract class TraceLocal extends TransitiveClosure implements Constants 
       return Plan.ploSpace.traceObject(this, object);
     if (Space.isInSpace(Plan.NON_MOVING, object))
       return Plan.nonMovingSpace.traceObject(this, object);
+    // DIFC: trace labeled objects; also trace the secrecy and integrity labels!
+    if (Space.isInSpace(Plan.LABELED, object)) {
+
+      // trace the object
+      ObjectReference newObject = Plan.labeledSpace.traceObjectLabeled(this, object);
+
+      // trace the secrecy label set
+      ObjectReference secrecyLabelSet = VM.objectModel.secrecyAddr(newObject).loadObjectReference();
+      if (VM.VERIFY_ASSERTIONS) {
+        VM.assertions._assert(!secrecyLabelSet.isNull());
+        VM.assertions._assert(willNotMoveInCurrentCollection(secrecyLabelSet));
+      }
+      traceObject(secrecyLabelSet);
+
+      // trace the integrity label set
+      ObjectReference integrityLabelSet = VM.objectModel.integrityAddr(newObject).loadObjectReference();
+      if (VM.VERIFY_ASSERTIONS) {
+        VM.assertions._assert(!integrityLabelSet.isNull());
+        VM.assertions._assert(willNotMoveInCurrentCollection(integrityLabelSet));
+      }
+      traceObject(integrityLabelSet);
+      
+      return newObject;
+    }
     if (Plan.USE_CODE_SPACE && Space.isInSpace(Plan.SMALL_CODE, object))
       return Plan.smallCodeSpace.traceObject(this, object);
     if (Plan.USE_CODE_SPACE && Space.isInSpace(Plan.LARGE_CODE, object))
@@ -323,6 +350,9 @@ public abstract class TraceLocal extends TransitiveClosure implements Constants 
     if (Space.isInSpace(Plan.VM_SPACE, object))
       return true;
     if (Space.isInSpace(Plan.NON_MOVING, object))
+      return true;
+    // DIFC: labeled objects don't move
+    if (Space.isInSpace(Plan.LABELED, object))
       return true;
     if (Plan.USE_CODE_SPACE && Space.isInSpace(Plan.SMALL_CODE, object))
       return true;

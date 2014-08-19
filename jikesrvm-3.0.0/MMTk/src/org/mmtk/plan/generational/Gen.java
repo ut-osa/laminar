@@ -224,6 +224,8 @@ public abstract class Gen extends StopTheWorld {
 
     if (loSpace.allocationFailed() ||
         nonMovingSpace.allocationFailed() ||
+        // DIFC: check labeled space
+        labeledSpace.allocationFailed() ||
         (USE_CODE_SPACE && (largeCodeSpace.allocationFailed() || smallCodeSpace.allocationFailed()))) {
       // We need space from the nursery
       return true;

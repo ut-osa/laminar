@@ -12,6 +12,7 @@
  */
 package org.mmtk.vm;
 
+import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Uninterruptible;
 import org.vmmagic.unboxed.*;
 
@@ -253,4 +254,11 @@ import org.vmmagic.unboxed.*;
   static Offset arrayBaseOffsetTrapdoor(ObjectModel o) {
     return o.getArrayBaseOffset();
   }
+  
+  /** DIFC: secrecy label offset */
+  public abstract Address secrecyAddr(ObjectReference object);
+
+  /** DIFC: integrity label offset */
+  public abstract Address integrityAddr(ObjectReference object);
+
 }

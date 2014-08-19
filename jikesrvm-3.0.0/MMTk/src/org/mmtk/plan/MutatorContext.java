@@ -12,6 +12,7 @@
  */
 package org.mmtk.plan;
 
+import org.mmtk.policy.ExplicitFreeListLocal;
 import org.mmtk.policy.MarkSweepLocal;
 import org.mmtk.policy.Space;
 import org.mmtk.policy.ImmortalLocal;
@@ -115,6 +116,10 @@ public abstract class MutatorContext implements Constants {
   /** Per-mutator allocator into the non moving space */
   private MarkSweepLocal nonmove = new MarkSweepLocal(Plan.nonMovingSpace);
 
+  /** DIFC: per-mutator allocator for labeled objects */
+  //private ImmortalLocal labeled = new ImmortalLocal(Plan.labeledSpace);
+  private MarkSweepLocal labeled = new MarkSweepLocal(Plan.labeledSpace);
+
   /** Per-mutator allocator into the primitive large object space */
   protected LargeObjectLocal plos = new LargeObjectLocal(Plan.ploSpace);
 
@@ -190,6 +195,9 @@ public abstract class MutatorContext implements Constants {
     case      Plan.ALLOC_CODE: return smcode.alloc(bytes, align, offset);
     case      Plan.ALLOC_LARGE_CODE: return lgcode.alloc(bytes, align, offset);
     case      Plan.ALLOC_NON_MOVING: return nonmove.alloc(bytes, align, offset);
+    // DIFC: label set pointers use two words before object
+    // DIFC: TODO: don't hard-code 8
+    case      Plan.ALLOC_LABELED: return labeled.alloc(bytes + 8, align, offset).plus(8);
     default:
       VM.assertions.fail("No such allocator");
       return Address.zero();
@@ -215,6 +223,8 @@ public abstract class MutatorContext implements Constants {
     case          Plan.ALLOC_CODE: Plan.smallCodeSpace.initializeHeader(ref, true); return;
     case    Plan.ALLOC_LARGE_CODE: Plan.largeCodeSpace.initializeHeader(ref, true); return;
     case    Plan.ALLOC_NON_MOVING: Plan.nonMovingSpace.initializeHeader(ref, true); return;
+    // DIFC: labeled objects
+    case    Plan.ALLOC_LABELED:    Plan.labeledSpace.initializeHeader(ref, true); return;
     default:
       VM.assertions.fail("No such allocator");
     }
@@ -277,6 +287,8 @@ public abstract class MutatorContext implements Constants {
     if (a == los)      return Plan.loSpace;
     if (a == plos)     return Plan.ploSpace;
     if (a == nonmove)  return Plan.nonMovingSpace;
+    // DIFC: labeled space
+    if (a == labeled)  return Plan.labeledSpace;
     if (Plan.USE_CODE_SPACE && a == smcode)   return Plan.smallCodeSpace;
     if (Plan.USE_CODE_SPACE && a == lgcode)   return Plan.largeCodeSpace;
 
@@ -298,6 +310,8 @@ public abstract class MutatorContext implements Constants {
     if (space == Plan.loSpace)        return los;
     if (space == Plan.ploSpace)       return plos;
     if (space == Plan.nonMovingSpace) return nonmove;
+    // DIFC: labeled space
+    if (space == Plan.labeledSpace) return labeled;
     if (Plan.USE_CODE_SPACE && space == Plan.smallCodeSpace) return smcode;
     if (Plan.USE_CODE_SPACE && space == Plan.largeCodeSpace) return lgcode;
 

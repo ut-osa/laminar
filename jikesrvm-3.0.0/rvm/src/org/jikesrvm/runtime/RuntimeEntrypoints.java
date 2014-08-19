@@ -444,7 +444,8 @@ public class RuntimeEntrypoints implements Constants, ArchitectureSpecific.Stack
    * @param type the type information for the class
    * @return the cloned object
    */
-  private static Object cloneClass2(Object obj, RVMType type) throws OutOfMemoryError {
+  // DIFC: made this public
+  public static Object cloneClass2(Object obj, RVMType type) throws OutOfMemoryError {
     RVMClass cls = type.asClass();
     Object newObj = resolvedNewScalar(cls);
     for (RVMField f : cls.getInstanceFields()) {

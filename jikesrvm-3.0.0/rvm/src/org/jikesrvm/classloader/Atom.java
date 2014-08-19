@@ -756,6 +756,8 @@ public final class Atom {
    * (ie a class that must be loaded by the bootstrap class loader)
    */
   @Pure
+  // DIFC: made uninterruptible
+  @Uninterruptible
   public boolean isBootstrapClassDescriptor() {
     non_bootstrap_outer:
     for (final byte[] test : NON_BOOTSTRAP_CLASS_PREFIX_SET) {
@@ -786,6 +788,8 @@ public final class Atom {
    * it might make it impossible to recompile.
    */
   @Pure
+  // DIFC: made uninterruptible
+  @Uninterruptible
   public boolean isRVMDescriptor() {
     outer:
     for (final byte[] test : RVM_CLASS_PREFIXES) {

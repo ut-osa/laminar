@@ -20,6 +20,8 @@ import org.jikesrvm.runtime.Entrypoints;
 import org.jikesrvm.runtime.Magic;
 import static org.jikesrvm.runtime.SysCall.sysCall;
 import org.jikesrvm.runtime.Time;
+import org.jikesrvm.scheduler.DIFC;
+import org.jikesrvm.scheduler.LabelSet;
 import org.jikesrvm.scheduler.Processor;
 import org.jikesrvm.scheduler.ProcessorLock;
 import org.jikesrvm.scheduler.Scheduler;
@@ -28,7 +30,7 @@ import org.vmmagic.pragma.NonMoving;
 import org.vmmagic.pragma.Uninterruptible;
 import org.vmmagic.pragma.Unpreemptible;
 import org.vmmagic.unboxed.Offset;
-
+import org.jikesrvm.scheduler.SRState;
 /**
  * Multiplex execution of large number of Threads on small
  * number of o/s kernel threads.
@@ -148,6 +150,17 @@ public final class GreenProcessor extends Processor {
    */
   static GreenProcessor idleProcessor;
 
+  /**
+   * DIFC: value of currentThread's inSecureRegion variable
+   * Also contains the capabilities that are shared by all threads
+   */
+  public boolean inSecureRegion;
+  public long startSecureRegionCycles; // value of RDTSC when we last started a SR
+  // DIFC: TODO: trying this out since we need something there on VM startup to avoid assertion failures
+  public SRState currentSRState = new SRState(LabelSet.EMPTY, LabelSet.EMPTY); //current state of the SR or the thread if outside the SR
+  /*Airavat: value of the current invocation number*/
+  public long invocation_number;
+  
   /**
    * Create data object to be associated with an o/s kernel thread
    * (aka "virtual cpu" or "pthread").
@@ -298,6 +311,35 @@ public final class GreenProcessor extends Processor {
     previousThread = (GreenThread)activeThread;
     activeThread = (GreenThread)newThread;
 
+    // DIFC: get the current thread's value of inSecureRegion; set the previous thread's
+    if (DIFC.enabled && !DIFC.isAiravat) {
+      /*TODO: reset the labels if you are inside a secure region. Use the tcb syscall*/
+      previousThread.inSecureRegion = this.inSecureRegion;
+      this.inSecureRegion = ((GreenThread)activeThread).inSecureRegion;
+      
+      previousThread.currentSRState=this.currentSRState;
+      this.currentSRState=((GreenThread)activeThread).currentSRState;
+      
+      // if we were in a secure region, but are now out, record the time
+      if (previousThread.inSecureRegion && !this.inSecureRegion) {
+        long elapsed = Magic.getTimeBase() - startSecureRegionCycles;
+        DIFC.totalCyclesInSecureRegions += elapsed;
+      // if we just started a secure region, start the time
+      } else if (!previousThread.inSecureRegion && this.inSecureRegion) {
+        startSecureRegionCycles = Magic.getTimeBase();
+      }
+    }
+    
+    /*Airavat: set the invocation number durin the thread switch*/
+    if(DIFC.isAiravat && DIFC.enabled){
+      previousThread.invocation_number=this.invocation_number;
+      this.invocation_number=((GreenThread)activeThread).invocation_number;
+      previousThread.inSecureRegion = this.inSecureRegion;
+      this.inSecureRegion = ((GreenThread)activeThread).inSecureRegion;
+      previousThread.currentSRState=this.currentSRState;
+      this.currentSRState=((GreenThread)activeThread).currentSRState;
+    }
+    
     if (!previousThread.isDaemonThread() && idleProcessor != null && !readyQueue.isEmpty()) {
       // if we've got too much work, transfer some of it to another
       // processor that has nothing to do

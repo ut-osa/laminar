@@ -660,6 +660,14 @@ public abstract class SegregatedFreeListSpace extends Space implements Constants
     return setLiveBit(VM.objectModel.objectStartRef(object), true);
   }
 
+  // DIFC: TODO: might not be needed anymore
+  
+  /** DIFC: for labeled objects */
+  @Inline
+  public static boolean testAndSetLiveBitLabeled(ObjectReference object) {
+    return setLiveBit(VM.objectModel.objectStartRef(object).minus(8), true);
+  }
+
   /**
    * Set the live bit for the block containing the given object
    *

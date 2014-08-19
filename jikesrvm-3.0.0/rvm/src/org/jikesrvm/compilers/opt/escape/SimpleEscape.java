@@ -485,7 +485,8 @@ class SimpleEscape extends CompilerPhase {
           return true;
         }
         // pure methods don't let object escape
-        if (mop.getTarget().isPure()) {
+        // DIFC: also for methods without side effects
+        if (mop.getTarget().isPure() || mop.getTarget().hasNoSideEffects()) {
           return false;
         }
         // try to get a method summary for the called method

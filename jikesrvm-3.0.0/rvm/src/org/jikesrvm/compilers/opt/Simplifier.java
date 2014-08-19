@@ -3233,7 +3233,8 @@ public abstract class Simplifier extends IRTools {
           }
         }
       }
-      if (methOp.hasPreciseTarget() && methOp.getTarget().isPure()) {
+      // DIFC: also for methods without side effects
+      if (methOp.hasPreciseTarget() && (methOp.getTarget().isPure() || methOp.getTarget().hasNoSideEffects())) {
         // Look for a precise method call to a pure method with all constant arguments
         RVMMethod method = methOp.getTarget();
         int n = Call.getNumberOfParams(s);

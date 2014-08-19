@@ -18,6 +18,8 @@ import java.lang.ref.WeakReference;
 import org.jikesrvm.ArchitectureSpecific.CodeArray;
 import org.jikesrvm.VM;
 import org.jikesrvm.HeapLayoutConstants;
+import org.jikesrvm.classloader.Atom;
+import org.jikesrvm.classloader.NormalMethod;
 import org.jikesrvm.classloader.RVMArray;
 import org.jikesrvm.classloader.RVMClass;
 import org.jikesrvm.classloader.RVMMethod;
@@ -38,7 +40,12 @@ import org.jikesrvm.objectmodel.TIBLayoutConstants;
 import org.jikesrvm.options.OptionSet;
 import org.jikesrvm.runtime.BootRecord;
 import org.jikesrvm.runtime.Magic;
+import org.jikesrvm.scheduler.DIFC;
+import org.jikesrvm.scheduler.LabelSet;
+import org.jikesrvm.scheduler.Processor;
 import org.jikesrvm.scheduler.ProcessorTable;
+import org.jikesrvm.scheduler.greenthreads.GreenProcessor;
+import org.jikesrvm.scheduler.greenthreads.GreenThread;
 import org.mmtk.plan.Plan;
 import org.mmtk.policy.Space;
 import org.mmtk.utility.Constants;
@@ -520,6 +527,24 @@ public final class MemoryManager implements HeapLayoutConstants, Constants {
     return Plan.getAllocationSite(compileTime);
   }
 
+  // DIFC: specify to allocator whether to allocate labeled object
+  // (if we're using dynamic barriers, then LABELED actually means
+  // to do a dynamic check of whether we're in a secure region
+  
+  public static final int LABELED = -2; // -1 is taken by DEFAULT_SITE :)
+  
+  @Inline
+  public static int getDIFCAllocationSite(boolean compileTime, NormalMethod method) {
+    if (VM.difcEnabled) {
+      if (DIFC.addBarriers(method)) {
+        if (DIFC.dynamicBarriers || method.staticallyInSecureRegion) {
+          return LABELED;
+        }
+      }
+    }
+    return getAllocationSite(compileTime);
+  }
+  
   /**
    * Returns the appropriate allocation scheme/area for the given
    * type.  This form is deprecated.  Without the RVMMethod argument,
@@ -647,6 +672,12 @@ public final class MemoryManager implements HeapLayoutConstants, Constants {
   @Inline
   public static Object allocateScalar(int size, TIB tib, int allocator, int align, int offset, int site) {
     Selected.Mutator mutator = Selected.Mutator.get();
+
+    // DIFC: decide whether to allocate a labeled object
+    if (allocLabeled(site)) {
+      allocator = Plan.ALLOC_LABELED;
+    }
+    
     allocator = mutator.checkAllocator(org.jikesrvm.runtime.Memory.alignUp(size, MIN_ALIGNMENT), align, allocator);
     Address region = allocateSpace(mutator, size, align, offset, allocator, site);
     Object result = ObjectModel.initializeScalar(region, tib, size);
@@ -654,6 +685,26 @@ public final class MemoryManager implements HeapLayoutConstants, Constants {
     return result;
   }
 
+  // DIFC: decide whether to allocate a labeled object
+  @Inline
+  private static boolean allocLabeled(int site) {
+    if (DIFC.enabled && VM.difcBarriers) {
+      // if using dynamic barriers, make dynamic decision; otherwise static decision
+      if (site == LABELED) {
+        boolean inSR;
+        if (DIFC.dynamicBarriers) {
+          inSR = Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inSecureRegion;
+        } else {
+          inSR = true;
+        }
+        if (inSR) {
+          return DIFC.shouldAllocLabeledObjectInSR();
+        }
+      }
+    }
+    return false;
+  }
+  
   /**
    * Allocate an array object. This is the interruptible component, including throwing
    * an OutOfMemoryError for arrays that are too large.
@@ -713,6 +764,12 @@ public final class MemoryManager implements HeapLayoutConstants, Constants {
   private static Object allocateArrayInternal(int numElements, int size, TIB tib, int allocator,
                                               int align, int offset, int site) {
     Selected.Mutator mutator = Selected.Mutator.get();
+
+    // DIFC: decide whether to allocate a labeled object
+    if (allocLabeled(site)) {
+      allocator = Plan.ALLOC_LABELED;
+    }
+    
     allocator = mutator.checkAllocator(org.jikesrvm.runtime.Memory.alignUp(size, MIN_ALIGNMENT), align, allocator);
     Address region = allocateSpace(mutator, size, align, offset, allocator, site);
     Object result = ObjectModel.initializeArray(region, tib, numElements, size);
@@ -1094,7 +1151,41 @@ public final class MemoryManager implements HeapLayoutConstants, Constants {
   public static boolean isImmortal(Object obj) {
     return Space.isImmortal(ObjectReference.fromObject(obj));
   }
+  
+  /**
+   * DIFC: check if an object is in the labeled space
+   */
+  @Inline
+  public static boolean isLabeled(Object obj) {
+    final Word value = ObjectReference.fromObject(obj).toAddress().toWord();
+    final Word start = JavaHeader.minimumObjectRef(Plan.labeledSpace.getStart()).toWord();
+    final Word unsignedOffset = value.minus(start);
+    final Word extent = Plan.labeledSpace.getExtent().toWord();
+    return unsignedOffset.LT(extent);
+    
+    // this is too hard for the opt compiler to optimize really well, apparently
+    //return Space.isInSpace(Plan.LABELED, ObjectReference.fromObject(obj));
+  }
 
+  @Inline
+  public static boolean isLabeled(Address address) {
+    final Word value = address.toWord();
+    final Word start = Plan.labeledSpace.getStart().toWord();
+    final Word unsignedOffset = value.minus(start);
+    final Word extent = Plan.labeledSpace.getExtent().toWord();
+    return unsignedOffset.LT(extent);
+
+    // this is too hard for the opt compiler to optimize really well, apparently
+    //return Space.isInSpace(Plan.LABELED, address);
+  }
+  
+  // DIFC: used in read and write barriers so they don't inline so much that the opt compiler gets overwhelmed
+  @Inline
+  public static final Word labeledStart() { return Plan.labeledSpace.getStart().toWord(); }
+  @Inline
+  public static final Word labeledExtent() { return Plan.labeledSpace.getExtent().toWord(); }
+  
+  
   /***********************************************************************
    *
    * Finalizers

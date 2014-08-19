@@ -45,6 +45,7 @@ import org.jikesrvm.compilers.opt.controlflow.YieldPoints;
 import org.jikesrvm.compilers.opt.escape.EscapeTransformations;
 import org.jikesrvm.compilers.opt.hir2lir.ConvertHIRtoLIR;
 import org.jikesrvm.compilers.opt.hir2lir.ExpandRuntimeServices;
+import org.jikesrvm.compilers.opt.hir2lir.RemoveRedundantDIFCBarriers;
 import org.jikesrvm.compilers.opt.regalloc.CoalesceMoves;
 import org.jikesrvm.compilers.opt.ssa.GCP;
 import org.jikesrvm.compilers.opt.ssa.LeaveSSA;
@@ -458,6 +459,13 @@ public class OptimizationPlanner {
 
       // Convert high level place holder instructions into actual instrumentation
       addComponent(p, new LowerInstrumentation());
+    }
+    
+    // DIFC: do redundant barrier elimination again
+    if (VM.difcBarriers &&
+        !VM.difcNoRedundancyElimination &&
+        !VM.difcNoLateRedundancyElimination) {
+      addComponent(p, new RemoveRedundantDIFCBarriers());
     }
   }
 

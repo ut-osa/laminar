@@ -220,6 +220,8 @@ public abstract class Simple extends Plan implements Constants {
       loSpace.prepare(true);
       ploSpace.prepare(true);
       nonMovingSpace.prepare(true);
+      // DIFC: labeled space
+      labeledSpace.prepare(true);
       if (USE_CODE_SPACE) {
         smallCodeSpace.prepare(true);
         largeCodeSpace.prepare(true);
@@ -239,6 +241,8 @@ public abstract class Simple extends Plan implements Constants {
       loSpace.release(true);
       ploSpace.release(true);
       nonMovingSpace.release();
+      // DIFC: labeled space
+      labeledSpace.release();
       if (USE_CODE_SPACE) {
         smallCodeSpace.release();
         largeCodeSpace.release(true);

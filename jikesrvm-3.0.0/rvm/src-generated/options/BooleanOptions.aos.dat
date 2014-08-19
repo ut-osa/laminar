@@ -61,3 +61,6 @@ Report stats related to timer interrupts and AOS listeners on exit
 DISABLE_RECOMPILE_ALL_METHODS -1 false
 Disable the ability for an app to request all methods to be recompiled
 
+# DIFC: stop AOS when harness starts?
+HARNESS_STOPS_CONTROLLER -1 false
+Stop AOS when the harness starts

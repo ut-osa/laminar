@@ -80,3 +80,6 @@
 
 [Lorg/vmmagic/pragma/Inline$When;
 Lsun/misc/Unsafe;
+
+# DIFC: interface between application and Jikes
+Lorg/jikesrvm/scheduler/DIFC;

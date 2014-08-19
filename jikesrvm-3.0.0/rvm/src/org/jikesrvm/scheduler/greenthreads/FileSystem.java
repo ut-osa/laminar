@@ -24,6 +24,7 @@ import org.jikesrvm.runtime.Magic;
 import static org.jikesrvm.runtime.SysCall.sysCall;
 import org.jikesrvm.runtime.Time;
 import org.jikesrvm.runtime.TimeoutException;
+import org.jikesrvm.scheduler.DIFC;
 import org.jikesrvm.util.StringUtilities;
 import org.vmmagic.pragma.Inline;
 
@@ -103,6 +104,9 @@ public class FileSystem {
   public static int stat(String fileName, int kind) {
     // convert file name from unicode to filesystem character set
     // (assume file name is ascii, for now)
+    /*DIFC: Pass labels to the OS, check return code*/
+    DIFC.OSpassCurrentLabels();
+    //VM.sysWrite("stat");
     byte[] asciiName = StringUtilities.stringToBytesNullTerminated(fileName);
     int rc = sysCall.sysStat(asciiName, kind);
     if (VM.TraceFileSystem) VM.sysWrite("FileSystem.stat: name=" + fileName + " kind=" + kind + " rc=" + rc + "\n");
@@ -118,6 +122,10 @@ public class FileSystem {
   public static int access(String fileName, int kind) {
     // convert file name from unicode to filesystem character set
     // (assume file name is ascii, for now)
+    /*DIFC: Pass labels to the OS, check return code*/
+    DIFC.OSpassCurrentLabels();
+    //VM.sysWrite("access");
+    
     byte[] asciiName = StringUtilities.stringToBytesNullTerminated(fileName);
 
     int rc = sysCall.sysAccess(asciiName, kind);
@@ -188,13 +196,16 @@ public class FileSystem {
    * @param fd file descriptor
    * @return byte that was read (< -1: i/o error, -1: eof, >= 0: data)
    */
-  public static int readByte(int fd) {
+  public static int readByte(int fd){
     if (!blockingReadHack(fd)) {
       return -2;
     }
 
     // See readBytes() method for an explanation of how the read loop works.
-
+    /*DIFC: Pass labels to the OS, check return code*/
+    DIFC.OSpassCurrentLabels();
+    //VM.sysWrite("readByte");
+    
     for (; ;) {
       int b = sysCall.sysReadByte(fd);
       if (b >= -1) {
@@ -227,7 +238,10 @@ public class FileSystem {
     if (!blockingWriteHack(fd)) {
       return -1;
     }
-
+    /*DIFC: Pass labels to the OS, check return code*/
+    DIFC.OSpassCurrentLabels();
+    //VM.sysWrite("writeByte");
+    
     // See writeBytes() for an explanation of how the write loop works
 
     for (; ;) {
@@ -280,7 +294,10 @@ public class FileSystem {
     if (off < 0) {
       throw new IndexOutOfBoundsException();
     }
-
+    /*DIFC: Pass labels to the OS*/
+    DIFC.OSpassCurrentLabels();
+    //VM.sysWrite("readBytes*");
+    
     // trim request to fit array
     // note: this behavior is the way the JDK does it (as of version 1.1.3)
     // whereas the language spec says to throw IndexOutOfBounds exception...
@@ -378,7 +395,10 @@ public class FileSystem {
     if (off < 0) {
       throw new IndexOutOfBoundsException();
     }
-
+    /*DIFC: Pass labels to the OS*/
+     DIFC.OSpassCurrentLabels();
+    //VM.sysWrite("writeBytes*");
+    
     // trim request to fit array
     // note: this behavior is the way the JDK does it (as of version 1.1.3)
     // whereas the language spec says to throw IndexOutOfBounds exception...
@@ -422,10 +442,16 @@ public class FileSystem {
   }
 
   public static boolean sync(int fd) {
+    /*DIFC: Pass labels to the OS*/
+    /*TODO: not sure if we need this*/
+    //DIFC.OSpassCurrentLabels();
     return sysCall.sysSyncFile(fd) == 0;
   }
 
   public static int bytesAvailable(int fd) {
+    /*DIFC: Pass labels to the OS*/
+    /*TODO: not sure if we need this*/
+    //DIFC.OSpassCurrentLabels();
     return sysCall.sysBytesAvailable(fd);
   }
 
@@ -454,7 +480,8 @@ public class FileSystem {
     if (VM.VerifyAssertions) {
       VM._assert(GreenScheduler.allProcessorsInitialized, "fd used before system is fully booted\n");
     }
-
+    /*DIFC: Pass labels to the OS*/
+    DIFC.OSpassCurrentLabels();
     int rc;
 
     // Set the file descriptor to be nonblocking.

@@ -39,4 +39,6 @@ class Dummy {
   static org.vmmagic.unboxed.WordArray x;
   static org.vmmagic.unboxed.OffsetArray y;
   static org.vmmagic.unboxed.ExtentArray z;
+  // DIFC: make sure DIFC class gets put in boot image
+  static org.jikesrvm.scheduler.DIFC zz;
 }

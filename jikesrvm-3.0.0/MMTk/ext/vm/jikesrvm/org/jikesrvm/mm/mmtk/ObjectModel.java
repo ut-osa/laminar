@@ -427,5 +427,16 @@ import org.vmmagic.pragma.*;
   public void dumpObject(ObjectReference object) {
     DebugUtil.dumpRef(object);
   }
-}
+  
+  /** DIFC: secrecy label offset */
+  @Inline
+  public Address secrecyAddr(ObjectReference object) {
+    return org.jikesrvm.scheduler.DIFC.secrecyAddr(object.toObject());
+  }
 
+  /** DIFC: integrity label offset */
+  @Inline
+  public Address integrityAddr(ObjectReference object) {
+    return org.jikesrvm.scheduler.DIFC.integrityAddr(object.toObject());
+  }
+}

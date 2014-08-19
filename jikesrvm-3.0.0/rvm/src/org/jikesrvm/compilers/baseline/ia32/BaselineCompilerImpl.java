@@ -48,6 +48,7 @@ import org.jikesrvm.runtime.MagicNames;
 import org.jikesrvm.runtime.RuntimeEntrypoints;
 import org.jikesrvm.runtime.Statics;
 import org.jikesrvm.runtime.Magic;
+import org.jikesrvm.scheduler.DIFC;
 import org.jikesrvm.scheduler.RVMThread;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Uninterruptible;
@@ -463,11 +464,26 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
   * array loads
   */
 
+  /** DIFC: helper method for all types of array stores */
+  @Inline
+  private final void insertDIFCReadBarrier() {
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.READ_BARRIER);
+    if (barrierMethod != null) {
+      asm.emitPUSH_RegDisp(SP, ONE_SLOT); // push object ref
+      //asm.emitPUSH_RegDisp(SP, ONE_SLOT); // push index (which is now one lower)
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+  }
+  
   /**
    * Emit code to load from an int array
    */
   @Override
   protected final void emit_iaload() {
+    // DIFC: insert read barrier
+    insertDIFCReadBarrier();
+    
     asm.emitPOP_Reg(T0); // T0 is array index
     asm.emitPOP_Reg(S0); // S0 is array ref
     if (generateBoundsChecks) genBoundsCheck(asm, T0, S0); // T0 is index, S0 is address of array
@@ -480,6 +496,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_faload() {
+    // DIFC: insert read barrier
+    insertDIFCReadBarrier();
+    
     // identical to iaload - code replicated for BaseBase compiler performance
     asm.emitPOP_Reg(T0); // T0 is array index
     asm.emitPOP_Reg(S0); // S0 is array ref
@@ -493,6 +512,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_aaload() {
+    // DIFC: insert read barrier
+    insertDIFCReadBarrier();
+    
     // identical to iaload - code replicated for BaseBase compiler performance
     asm.emitPOP_Reg(T0); // T0 is array index
     asm.emitPOP_Reg(S0); // S0 is array ref
@@ -510,6 +532,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_caload() {
+    // DIFC: insert read barrier
+    insertDIFCReadBarrier();
+    
     asm.emitPOP_Reg(T0); // T0 is array index
     asm.emitPOP_Reg(S0); // S0 is array ref
     if (generateBoundsChecks) genBoundsCheck(asm, T0, S0); // T0 is index, S0 is address of array
@@ -523,6 +548,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_saload() {
+    // DIFC: insert read barrier
+    insertDIFCReadBarrier();
+    
     asm.emitPOP_Reg(T0); // T0 is array index
     asm.emitPOP_Reg(S0); // S0 is array ref
     if (generateBoundsChecks) genBoundsCheck(asm, T0, S0); // T0 is index, S0 is address of array
@@ -536,6 +564,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_baload() {
+    // DIFC: insert read barrier
+    insertDIFCReadBarrier();
+    
     asm.emitPOP_Reg(T0); // T0 is array index
     asm.emitPOP_Reg(S0); // S0 is array ref
     if (generateBoundsChecks) genBoundsCheck(asm, T0, S0); // T0 is index, S0 is address of array
@@ -549,6 +580,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_laload() {
+    // DIFC: insert read barrier
+    insertDIFCReadBarrier();
+    
     asm.emitPOP_Reg(T0); // T0 is array index
     asm.emitPOP_Reg(S0); // S0 is array ref
     if (SSE2_BASE) {
@@ -569,6 +603,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_daload() {
+    // DIFC: insert read barrier
+    insertDIFCReadBarrier();
+    
     // identical to laload - code replicated for BaseBase compiler performance
     asm.emitPOP_Reg(T0); // T0 is array index
     asm.emitPOP_Reg(S0); // S0 is array ref
@@ -589,11 +626,26 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
   * array stores
   */
 
+  /** DIFC: helper method for all types of array stores */
+  @Inline
+  private final void insertDIFCWriteBarrier(Offset numSlots) {
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.WRITE_BARRIER);
+    if (barrierMethod != null) {
+      asm.emitPUSH_RegDisp(SP, numSlots); // push object ref
+      //asm.emitPUSH_RegDisp(SP, numSlots); // push index (which is now one lower)
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+  }
+  
   /**
    * Emit code to store to an int array
    */
   @Override
   protected final void emit_iastore() {
+    // DIFC: insert write barrier
+    insertDIFCWriteBarrier(TWO_SLOTS);
+    
     Barriers.compileModifyCheck(asm, 8);
     asm.emitPOP_Reg(T1); // T1 is the value
     asm.emitPOP_Reg(T0); // T0 is array index
@@ -607,6 +659,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_fastore() {
+    // DIFC: insert write barrier
+    insertDIFCWriteBarrier(TWO_SLOTS);
+    
     // identical to iastore - code replicated for BaseBase compiler performance
     Barriers.compileModifyCheck(asm, 8);
     asm.emitPOP_Reg(T1); // T1 is the value
@@ -622,6 +677,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_aastore() {
+    // DIFC: insert write barrier
+    insertDIFCWriteBarrier(TWO_SLOTS);
+    
     Barriers.compileModifyCheck(asm, 8);
     asm.emitPUSH_RegDisp(SP, TWO_SLOTS); // duplicate array ref
     asm.emitPUSH_RegDisp(SP, ONE_SLOT);  // duplicate object value
@@ -647,6 +705,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_castore() {
+    // DIFC: insert write barrier
+    insertDIFCWriteBarrier(TWO_SLOTS);
+    
     Barriers.compileModifyCheck(asm, 8);
     asm.emitPOP_Reg(T1); // T1 is the value
     asm.emitPOP_Reg(T0); // T0 is array index
@@ -661,6 +722,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_sastore() {
+    // DIFC: insert write barrier
+    insertDIFCWriteBarrier(TWO_SLOTS);
+    
     // identical to castore - code replicated for BaseBase compiler performance
     Barriers.compileModifyCheck(asm, 8);
     asm.emitPOP_Reg(T1); // T1 is the value
@@ -676,6 +740,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_bastore() {
+    // DIFC: insert write barrier
+    insertDIFCWriteBarrier(TWO_SLOTS);
+    
     Barriers.compileModifyCheck(asm, 8);
     asm.emitPOP_Reg(T1); // T1 is the value
     asm.emitPOP_Reg(T0); // T0 is array index
@@ -689,6 +756,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_lastore() {
+    // DIFC: insert write barrier
+    insertDIFCWriteBarrier(THREE_SLOTS);
+    
     Barriers.compileModifyCheck(asm, 12);
     if (SSE2_BASE) {
       asm.emitMOVQ_Reg_RegInd(XMM0,SP);            // XMM0 is the value
@@ -718,6 +788,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_dastore() {
+    // DIFC: insert write barrier
+    insertDIFCWriteBarrier(THREE_SLOTS);
+
     // identical to lastore - code replicated for BaseBase compiler performance
     Barriers.compileModifyCheck(asm, 12);
     if (SSE2_BASE) {
@@ -2390,6 +2463,15 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_unresolved_getstatic(FieldReference fieldRef) {
+
+    // DIFC: static read barrier
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.STATIC_READ_BARRIER);
+    if (barrierMethod != null) {
+      asm.emitPUSH_Imm(fieldRef.getId()); // field ref ID
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+    
     emitDynamicLinkingSequence(asm, T0, fieldRef, true);
     if (MemoryManagerConstants.NEEDS_GETSTATIC_READ_BARRIER && !fieldRef.getFieldContentsType().isPrimitiveType()) {
       Barriers.compileGetstaticBarrier(asm, T0, fieldRef.getId());
@@ -2413,6 +2495,15 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
   protected final void emit_resolved_getstatic(FieldReference fieldRef) {
     RVMField field = fieldRef.peekResolvedField();
     Offset fieldOffset = field.getOffset();
+    
+    // DIFC: static read barrier
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.STATIC_READ_BARRIER);
+    if (barrierMethod != null) {
+      asm.emitPUSH_Imm(fieldRef.getId()); // field ref ID
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+    
     if (MemoryManagerConstants.NEEDS_GETSTATIC_READ_BARRIER && !fieldRef.getFieldContentsType().isPrimitiveType() && !field.isUntraced()) {
       Barriers.compileGetstaticBarrierImm(asm, fieldOffset, fieldRef.getId());
       return;
@@ -2432,6 +2523,15 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_unresolved_putstatic(FieldReference fieldRef) {
+    
+    // DIFC: static write barrier
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.STATIC_WRITE_BARRIER);
+    if (barrierMethod != null) {
+      asm.emitPUSH_Imm(fieldRef.getId()); // field ref ID
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+    
     emitDynamicLinkingSequence(asm, T0, fieldRef, true);
     if (MemoryManagerConstants.NEEDS_PUTSTATIC_WRITE_BARRIER && fieldRef.getFieldContentsType().isReferenceType()) {
       Barriers.compilePutstaticBarrier(asm, T0, fieldRef.getId());
@@ -2456,6 +2556,15 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
   protected final void emit_resolved_putstatic(FieldReference fieldRef) {
     RVMField field = fieldRef.peekResolvedField();
     Offset fieldOffset = field.getOffset();
+    
+    // DIFC: static write barrier
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.STATIC_WRITE_BARRIER);
+    if (barrierMethod != null) {
+      asm.emitPUSH_Imm(fieldRef.getId()); // field ref ID
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+    
     if (MemoryManagerConstants.NEEDS_PUTSTATIC_WRITE_BARRIER && field.isReferenceType() && !field.isUntraced()) {
       Barriers.compilePutstaticBarrierImm(asm, fieldOffset, fieldRef.getId());
       asm.emitADD_Reg_Imm(SP, WORDSIZE);
@@ -2477,7 +2586,18 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
   @Override
   protected final void emit_unresolved_getfield(FieldReference fieldRef) {
     TypeReference fieldType = fieldRef.getFieldContentsType();
+    
+    // DIFC: insert read barrier
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.READ_BARRIER);
+    if (barrierMethod != null) {
+      asm.emitPUSH_RegInd(SP);
+      //asm.emitPUSH_Imm(fieldRef.getId());
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+
     emitDynamicLinkingSequence(asm, T0, fieldRef, true);
+
     if (fieldType.isReferenceType()) {
       // 32bit reference load
       if (MemoryManagerConstants.NEEDS_READ_BARRIER) {
@@ -2538,6 +2658,16 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
     TypeReference fieldType = fieldRef.getFieldContentsType();
     RVMField field = fieldRef.peekResolvedField();
     Offset fieldOffset = field.getOffset();
+    
+    // DIFC: insert read barrier
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.READ_BARRIER);
+    if (barrierMethod != null) {
+      asm.emitPUSH_RegInd(SP);
+      //asm.emitPUSH_Imm(fieldRef.getId());
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+    
     if (field.isReferenceType()) {
       // 32bit reference load
       if (MemoryManagerConstants.NEEDS_READ_BARRIER && !field.isUntraced()) {
@@ -2596,6 +2726,20 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
   @Override
   protected final void emit_unresolved_putfield(FieldReference fieldRef) {
     TypeReference fieldType = fieldRef.getFieldContentsType();
+    
+    // DIFC: insert write barrier
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.WRITE_BARRIER);
+    if (barrierMethod != null) {
+      if (fieldRef.getSize() == BYTES_IN_LONG) {
+        asm.emitPUSH_RegDisp(SP, TWO_SLOTS);
+      } else {
+        asm.emitPUSH_RegDisp(SP, ONE_SLOT);
+      }
+      //asm.emitPUSH_Imm(fieldRef.getId());
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+    
     emitDynamicLinkingSequence(asm, T0, fieldRef, true);
     if (fieldType.isReferenceType()) {
       // 32bit reference store
@@ -2651,6 +2795,20 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
   protected final void emit_resolved_putfield(FieldReference fieldRef) {
     RVMField field = fieldRef.peekResolvedField();
     Offset fieldOffset = field.getOffset();
+    
+    // DIFC: insert write barrier
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.WRITE_BARRIER);
+    if (barrierMethod != null) {
+      if (field.getSize() == BYTES_IN_LONG) {
+        asm.emitPUSH_RegDisp(SP, TWO_SLOTS);
+      } else {
+        asm.emitPUSH_RegDisp(SP, ONE_SLOT);
+      }
+      //asm.emitPUSH_Imm(fieldRef.getId());
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+    
     Barriers.compileModifyCheck(asm, 4);
     if (field.isReferenceType()) {
       // 32bit reference store
@@ -2919,6 +3077,17 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
   * other object model functions
   */
 
+  /** DIFC: helper method for adding allocation barriers */
+  @Inline
+  private final void difcAllocationBarrierHelper() {
+    NormalMethod barrierMethod = DIFC.addBarriers(method, DIFC.ALLOC_BARRIER);
+    if (barrierMethod != null) {
+      asm.emitPUSH_Reg(T0); // push object ref
+      genParameterRegisterLoad(asm, 1);
+      asm.emitCALL_Abs(Magic.getTocPointer().plus(barrierMethod.getOffset()));
+    }
+  }
+
   /**
    * Emit code to allocate a scalar object
    * @param typeRef the RVMClass to instantiate
@@ -2930,7 +3099,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
     int whichAllocator = MemoryManager.pickAllocator(typeRef, method);
     int align = ObjectModel.getAlignment(typeRef, false);
     int offset = ObjectModel.getOffsetForAlignment(typeRef, false);
-    int site = MemoryManager.getAllocationSite(true);
+    // DIFC: allocate labeled object if in secure region
+    int site = MemoryManager.getDIFCAllocationSite(true, method);
+    //int site = MemoryManager.getAllocationSite(true);
     asm.emitPUSH_Imm(instanceSize);
     asm.emitPUSH_Abs(Magic.getTocPointer().plus(tibOffset));       // put tib on stack
     asm.emitPUSH_Imm(typeRef.hasFinalizer() ? 1 : 0); // does the class have a finalizer?
@@ -2941,6 +3112,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
     genParameterRegisterLoad(asm, 7);                  // pass 7 parameter words
     asm.emitCALL_Abs(Magic.getTocPointer().plus(Entrypoints.resolvedNewScalarMethod.getOffset()));
     asm.emitPUSH_Reg(T0);
+    
+    // DIFC: allocation barrier
+    difcAllocationBarrierHelper();
   }
 
   /**
@@ -2949,12 +3123,17 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_unresolved_new(TypeReference typeRef) {
-    int site = MemoryManager.getAllocationSite(true);
+    // DIFC: allocate labeled object if in secure region
+    int site = MemoryManager.getDIFCAllocationSite(true, method);
+    //int site = MemoryManager.getAllocationSite(true);
     asm.emitPUSH_Imm(typeRef.getId());
     asm.emitPUSH_Imm(site);                 // site
     genParameterRegisterLoad(asm, 2);            // pass 2 parameter words
     asm.emitCALL_Abs(Magic.getTocPointer().plus(Entrypoints.unresolvedNewScalarMethod.getOffset()));
     asm.emitPUSH_Reg(T0);
+    
+    // DIFC: allocation barrier
+    difcAllocationBarrierHelper();
   }
 
   /**
@@ -2967,7 +3146,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
     Offset tibOffset = array.getTibOffset();
     int headerSize = ObjectModel.computeHeaderSize(array);
     int whichAllocator = MemoryManager.pickAllocator(array, method);
-    int site = MemoryManager.getAllocationSite(true);
+    // DIFC: allocate labeled object if in secure region
+    int site = MemoryManager.getDIFCAllocationSite(true, method);
+    //int site = MemoryManager.getAllocationSite(true);
     int align = ObjectModel.getAlignment(array);
     int offset = ObjectModel.getOffsetForAlignment(array, false);
     // count is already on stack- nothing required
@@ -2981,6 +3162,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
     genParameterRegisterLoad(asm, 8);             // pass 8 parameter words
     asm.emitCALL_Abs(Magic.getTocPointer().plus(Entrypoints.resolvedNewArrayMethod.getOffset()));
     asm.emitPUSH_Reg(T0);
+    
+    // DIFC: allocation barrier
+    difcAllocationBarrierHelper();
   }
 
   /**
@@ -2989,13 +3173,18 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
    */
   @Override
   protected final void emit_unresolved_newarray(TypeReference tRef) {
-    int site = MemoryManager.getAllocationSite(true);
+    // DIFC: allocate labeled object if in secure region
+    int site = MemoryManager.getDIFCAllocationSite(true, method);
+    //int site = MemoryManager.getAllocationSite(true);
     // count is already on stack- nothing required
     asm.emitPUSH_Imm(tRef.getId());
     asm.emitPUSH_Imm(site);                 // site
     genParameterRegisterLoad(asm, 3);            // pass 3 parameter words
     asm.emitCALL_Abs(Magic.getTocPointer().plus(Entrypoints.unresolvedNewArrayMethod.getOffset()));
     asm.emitPUSH_Reg(T0);
+    
+    // DIFC: allocation barrier
+    difcAllocationBarrierHelper();
   }
 
   /**
@@ -3023,6 +3212,9 @@ public abstract class BaselineCompilerImpl extends BaselineCompiler implements B
       asm.emitPOP_Reg(S0); // clear stack of dimensions (todo use and add immediate to do this)
     }
     asm.emitPUSH_Reg(T0);                       // push array ref on stack
+    
+    // DIFC: allocation barrier
+    difcAllocationBarrierHelper();
   }
 
   /**

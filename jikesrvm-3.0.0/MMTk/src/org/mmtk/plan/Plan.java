@@ -12,6 +12,7 @@
  */
 package org.mmtk.plan;
 
+import org.mmtk.policy.ExplicitFreeListSpace;
 import org.mmtk.policy.MarkSweepSpace;
 import org.mmtk.policy.SegregatedFreeListSpace;
 import org.mmtk.policy.Space;
@@ -94,7 +95,9 @@ public abstract class Plan implements Constants {
   public static final int ALLOC_COLD_CODE = USE_CODE_SPACE ? ALLOC_CODE : ALLOC_DEFAULT;
   public static final int ALLOC_STACK = ALLOC_LOS;
   public static final int ALLOC_IMMORTAL_STACK = ALLOC_IMMORTAL;
-  public static final int ALLOCATORS = 9;
+  // DIFC: added labeled allocator
+  public static final int ALLOC_LABELED = 9;
+  public static final int ALLOCATORS = 10;
   public static final int DEFAULT_SITE = -1;
 
   /* Miscellaneous Constants */
@@ -139,6 +142,11 @@ public abstract class Plan implements Constants {
   /** Space used to allocate objects that cannot be moved. we do not need a large space as the LOS is non-moving. */
   public static final MarkSweepSpace nonMovingSpace = new MarkSweepSpace("non-moving", DEFAULT_POLL_FREQUENCY, VMRequest.create());
 
+  /** DIFC: labeled object space */
+  //public static final ImmortalSpace labeledSpace = new ImmortalSpace("labeled", DEFAULT_POLL_FREQUENCY, VMRequest.create(256));
+  public static final MarkSweepSpace labeledSpace = new MarkSweepSpace("labeled", DEFAULT_POLL_FREQUENCY, VMRequest.create(256));
+  //public static final MarkSweepSpace labeledSpace = new MarkSweepSpace("labeled", DEFAULT_POLL_FREQUENCY, VMRequest.create(Address.fromIntZeroExtend(0x80000000), Extent.fromIntZeroExtend(0x10000000)));
+  
   public static final MarkSweepSpace smallCodeSpace = USE_CODE_SPACE ? new MarkSweepSpace("sm-code", DEFAULT_POLL_FREQUENCY, VMRequest.create()) : null;
   public static final LargeObjectSpace largeCodeSpace = USE_CODE_SPACE ? new LargeObjectSpace("lg-code", DEFAULT_POLL_FREQUENCY, VMRequest.create()) : null;
 
@@ -150,6 +158,8 @@ public abstract class Plan implements Constants {
   public static final int PLOS = ploSpace.getDescriptor();
   public static final int SANITY = sanitySpace.getDescriptor();
   public static final int NON_MOVING = nonMovingSpace.getDescriptor();
+  // DIFC: labeled object space
+  public static final int LABELED = labeledSpace.getDescriptor();
   public static final int SMALL_CODE = USE_CODE_SPACE ? smallCodeSpace.getDescriptor() : 0;
   public static final int LARGE_CODE = USE_CODE_SPACE ? largeCodeSpace.getDescriptor() : 0;
 
@@ -654,6 +664,9 @@ public abstract class Plan implements Constants {
     boolean oldFullHeap = Options.fullHeapSystemGC.getValue();
     boolean oldIgnore = Options.ignoreSystemGC.getValue();
 
+    // DIFC: stop hotspot compilation if requested
+    VM.collection.stopControllerIfRequested();
+    
     // Set desired values.
     Options.fullHeapSystemGC.setValue(true);
     Options.ignoreSystemGC.setValue(false);
@@ -804,7 +817,9 @@ public abstract class Plan implements Constants {
   public int getPagesUsed() {
     return loSpace.reservedPages() + ploSpace.reservedPages() +
            immortalSpace.reservedPages() + metaDataSpace.reservedPages() +
-           nonMovingSpace.reservedPages();
+           nonMovingSpace.reservedPages() +
+           // DIFC: add labeled space
+           labeledSpace.reservedPages();
   }
 
   /**
@@ -817,7 +832,9 @@ public abstract class Plan implements Constants {
   public int getPagesRequired() {
     return loSpace.requiredPages() + ploSpace.requiredPages() +
       metaDataSpace.requiredPages() + immortalSpace.requiredPages() +
-      nonMovingSpace.requiredPages();
+      nonMovingSpace.requiredPages() +
+      // DIFC: add labeled space
+      labeledSpace.requiredPages();
   }
 
   /**
@@ -994,6 +1011,9 @@ public abstract class Plan implements Constants {
     if (Space.isInSpace(VM_SPACE, object))
       return true;
     if (Space.isInSpace(NON_MOVING, object))
+      return true;
+    // DIFC: labeled objects don't move
+    if (Space.isInSpace(LABELED, object))
       return true;
     if (USE_CODE_SPACE && Space.isInSpace(SMALL_CODE, object))
       return true;

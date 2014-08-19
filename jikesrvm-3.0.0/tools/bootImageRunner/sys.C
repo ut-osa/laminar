@@ -46,6 +46,9 @@ extern "C" int sched_yield(void);
 #include <time.h>               // nanosleep() and other
 #include <utime.h>
 
+/*DIFC: OS header file*/
+#include "difc.h"
+
 #ifdef RVM_WITH_PERFCTR
 #  include "perfctr.h"
 #endif
@@ -499,6 +502,104 @@ sysAccess(char *name, int kind)
     return access(name, kind);
 }
 
+/*DIFC: pass the labels to the OS*/
+extern "C" int
+sysPassLabels(long secrecySet[],int sec_len, long integritySet[], int int_len) {
+	int i;
+	errno=0;
+	struct label_struct cur_label;
+	cur_label.secList[0]=(label_t)sec_len;	
+	//(*cur_label.secList)=sec_len;
+	for(i=0;i<sec_len;i++)
+           cur_label.secList[i+1]=(label_t)secrecySet[i];
+	//(*cur_label.intList)=int_len;
+	cur_label.intList[0]=(label_t)int_len;
+	for(i=0;i<int_len;i++)
+           cur_label.intList[i+1]=(label_t)integritySet[i];
+	//printf("seclen=%d",sec_len);
+	return set_task_label(NULL, LABEL_OP_REPLACE, NULL, &cur_label);
+}
+
+/*DIFC: ask the OS to replace the labels without making checks*/
+extern "C" int
+sysReplaceLabelsTCB(long secrecySet[],int sec_len, long integritySet[], int int_len) {
+	int i;
+	errno=0;
+	struct label_struct cur_label;
+	//(*cur_label.secList)=sec_len;
+	cur_label.secList[0]=(label_t)sec_len;
+	for(i=0;i<sec_len;i++)
+           cur_label.secList[i+1]=(label_t)secrecySet[i];
+	//(*cur_label.intList)=int_len;
+	cur_label.intList[0]=(label_t)int_len;
+	for(i=0;i<int_len;i++)
+           cur_label.intList[i+1]=(label_t)integritySet[i];
+	return replace_label_tcb(&cur_label);
+}
+
+/*DIFC: Drop capability of the thread
+*flag=0->permanent drop;flag=1->temporary drop
+*type=0->plus capability;type=1->minus capability 
+*/
+
+extern "C" int
+sysDropCapability(long labels[], int length, int type, int flag) {
+   //printf("Drop capability: Type=%d : flag=%d\n",type,flag); 
+   errno=0;
+   if(type==0)
+	return drop_capabilities((capability_t *) labels, length, CAP_PLUS_MASK, flag);
+   if(type==1)
+	return drop_capabilities((capability_t *) labels, length, CAP_MINUS_MASK, flag);
+   return drop_capabilities((capability_t *) labels, length, CAP_PLUS_MASK|CAP_MINUS_MASK, flag);
+}
+
+
+/*DIFC: Create a new capability and add it to the thread
+*or the program's capability list
+*region=0: none; region=1: add only to the thread ; region=2: add to the program
+*In JAVA: PLUS_CAPABILITY=0, MINUS_CAPABILITY=1, BOTH_CAPABILITY=2
+*/
+
+extern "C" int
+sysCreateAndAddLabel(int type, int region) {
+   errno=0;
+   if(type==0)
+	return (int)alloc_label(CAP_PLUS_MASK, region);
+   if(type==1)
+	return (int)alloc_label(CAP_MINUS_MASK, region);	
+   return (int)alloc_label(CAP_PLUS_MASK|CAP_MINUS_MASK, region);
+}
+
+/*DIFC: create a labeled directory*/
+
+extern "C" int
+sysCreateLabeledDirectory(char *pname, int mode, long secrecySet[],int sec_len, long integritySet[], int int_len) {
+	errno=0;
+	int i;
+	struct label_struct dir_label;
+	(*dir_label.secList)=sec_len;
+	for(i=0;i<sec_len;i++)
+           dir_label.secList[i+1]=(label_t)secrecySet[i];
+	(*dir_label.intList)=int_len;
+	for(i=0;i<int_len;i++)
+           dir_label.intList[i+1]=(label_t)integritySet[i];
+	return mkdir_labeled(pname, mode, &dir_label);
+}
+
+/*DIFC: create a labeled file*/
+extern "C" int
+sysCreateLabeledFile(char *pname, int mode, long secrecySet[],int sec_len, long integritySet[], int int_len) {
+	errno=0;
+	int i;
+	struct label_struct dir_label;
+	(*dir_label.secList)=sec_len;
+	for(i=0;i<sec_len;i++)
+           dir_label.secList[i+1]=(label_t)secrecySet[i];
+	(*dir_label.intList)=int_len;
+	for(i=0;i<int_len;i++)
+           dir_label.intList[i+1]=(label_t)integritySet[i];
+	return create_labeled(pname, mode, &dir_label);
+}
 // How many bytes can be read from file/socket without blocking?
 // Taken:    file/socket descriptor
 // Returned: >=0: count, ThreadIOConstants_FD_INVALID: bad file descriptor,

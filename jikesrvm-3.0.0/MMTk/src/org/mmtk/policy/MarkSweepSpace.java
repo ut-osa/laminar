@@ -272,6 +272,28 @@ public final class MarkSweepSpace extends SegregatedFreeListSpace implements Con
     return object;
   }
 
+  // DIFC: TODO: might not be needed anymore
+  
+  /**
+   * DIFC: special method for tracing labeled objects.
+   * Calls testAndSetLiveBitLabeled().
+   */
+  @Inline
+  public ObjectReference traceObjectLabeled(TransitiveClosure trace, ObjectReference object) {
+    if (HEADER_MARK_BITS) {
+      Word markValue = Plan.NEEDS_LOG_BIT_IN_HEADER ? markState.or(Plan.UNLOGGED_BIT) : markState;
+      if (testAndMark(object, markValue)) {
+        markBlock(object);
+        trace.processNode(object);
+      }
+    } else {
+      if (testAndSetLiveBitLabeled(object)) {
+        trace.processNode(object);
+      }
+    }
+    return object;
+  }
+
   /**
    *
    * @param object The object in question
