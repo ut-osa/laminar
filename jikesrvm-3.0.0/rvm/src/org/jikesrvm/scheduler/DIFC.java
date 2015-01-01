@@ -511,15 +511,6 @@ public final class DIFC {
     }
   }
 
-  @Entrypoint @Uninterruptible
-  public static final void airavatReadBarrierDynamicDebug(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatReadBarrierInsideSRDebug(obj);
-    } else {
-      airavatReadBarrierOutsideSRDebug(obj);
-    }
-  }
-
   @Entrypoint @Inline @Uninterruptible
   @NoNullCheck @NoBoundsCheck @NoSideEffects
   public static final void readBarrierDynamic(Object obj) {
@@ -530,24 +521,11 @@ public final class DIFC {
     }
   }
 
-  @Entrypoint @Inline @Uninterruptible
-  @NoNullCheck @NoBoundsCheck @NoSideEffects
-  public static final void airavatReadBarrierDynamic(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatReadBarrierInsideSR(obj);
-    }
-  }
-
   @Entrypoint @Uninterruptible
   public static final void readBarrierOutsideSRDebug(Object obj) {
     //profile("DIFC.readBarrierOutsideSR");
        if (VM.VerifyAssertions) { VM._assert(!((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     readBarrierOutsideSR(obj);
-  }
-
-  @Entrypoint @Uninterruptible
-  public static final void airavatReadBarrierOutsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
   }
 
   @Entrypoint  @Inline  @UninterruptibleNoWarn
@@ -568,12 +546,6 @@ public final class DIFC {
     readBarrierInsideSR(obj);
   }
   
-  @Entrypoint @Uninterruptible
-  public static final void airavatReadBarrierInsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
-    airavatReadBarrierInsideSR(obj);
-  }
-  
   @Entrypoint @UninterruptibleNoWarn
   @NoNullCheck @NoBoundsCheck @NoSideEffects
   public static final void readBarrierInsideSR(Object obj) {
@@ -590,16 +562,6 @@ public final class DIFC {
           readBarrierSlowPath(obj);
         }
       }
-    }
-  }
-
-  @Entrypoint @UninterruptibleNoWarn
-  @NoNullCheck @NoBoundsCheck @NoSideEffects
-  public static void airavatReadBarrierInsideSR(Object obj) {
-    if(!MemoryManager.isLabeled(obj))
-      throwAiravatException("Reading unlabeled object inside mapper");
-    else{
-      checkInvocationReadRule(getSecrecyLabels(obj));
     }
   }
 
@@ -642,15 +604,6 @@ public final class DIFC {
     }
   }
 
-  @Entrypoint @Uninterruptible
-  public static final void airavatWriteBarrierDynamicDebug(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatWriteBarrierInsideSRDebug(obj);
-    } else {
-      airavatWriteBarrierOutsideSRDebug(obj);
-    }
-  }
-
   @Entrypoint @Inline @Uninterruptible
   @NoNullCheck @NoBoundsCheck @NoSideEffects
   public static final void writeBarrierDynamic(Object obj) {
@@ -661,24 +614,11 @@ public final class DIFC {
     }
   }
 
-  @Entrypoint @Inline @Uninterruptible
-  @NoNullCheck @NoBoundsCheck @NoSideEffects
-  public static final void airavatWriteBarrierDynamic(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatWriteBarrierInsideSR(obj);
-    }
-  }
-
   @Entrypoint @Uninterruptible
   public static final void writeBarrierOutsideSRDebug(Object obj) {
     //profile("DIFC.readBarrierOutsideSR");
     if (VM.VerifyAssertions) { VM._assert(!((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     writeBarrierOutsideSR(obj);
-  }
-
-  @Entrypoint @Uninterruptible
-  public static final void airavatWriteBarrierOutsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(!Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
   }
 
   @Entrypoint @Inline @UninterruptibleNoWarn
@@ -697,12 +637,6 @@ public final class DIFC {
     //profile("DIFC.readBarrierInsideSR");
     if (VM.VerifyAssertions) { VM._assert(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     writeBarrierInsideSR(obj);
-  }
-
-  @Entrypoint @Uninterruptible
-  public static final void airavatWriteBarrierInsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
-    airavatWriteBarrierInsideSR(obj);
   }
 
   @Entrypoint @UninterruptibleNoWarn
@@ -725,20 +659,6 @@ public final class DIFC {
         }
       }
     }
-  }
-
-  @Entrypoint @UninterruptibleNoWarn
-  @NoNullCheck @NoBoundsCheck @NoSideEffects
-  public static final void airavatWriteBarrierInsideSR(Object obj) {
-    GreenThread currentThread = (GreenThread)GreenProcessor.getCurrentThread();
-    /*Airavat code*/
-    //if(isAiravat){
-      if (MemoryManager.isLabeled(obj)) {
-        checkInvocationWriteRule(getSecrecyLabels(obj));
-      }else{
-        throwAiravatException("Writing to unlabeled object");
-      }
-    //}
   }
 
   @UninterruptibleNoWarn @Inline
@@ -778,15 +698,6 @@ public final class DIFC {
     }
   }
   
-  @Entrypoint @Uninterruptible
-  public static final void airavatStaticReadBarrierDynamicDebug(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatStaticReadBarrierInsideSRDebug(fieldID);
-    } else {
-      airavatStaticReadBarrierOutsideSRDebug(fieldID);
-    }
-  }
-  
   @Entrypoint @Inline @Uninterruptible
   public static final void staticReadBarrierDynamic(int fieldID) {
     if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
@@ -796,24 +707,10 @@ public final class DIFC {
     }
   }
   
-  @Entrypoint @Inline @Uninterruptible
-  public static final void airavatStaticReadBarrierDynamic(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatStaticReadBarrierInsideSR(fieldID);
-    } //else {
-      //airavatStaticReadBarrierOutsideSR(fieldID);
-    //}
-  }
-  
   @Entrypoint @Uninterruptible
   public static final void staticReadBarrierInsideSRDebug(int fieldID) {
     //profile("DIFC.staticReadBarrierInsideSR");
     staticReadBarrierInsideSR(fieldID);
-  }
-
-  @Entrypoint @Uninterruptible
-  public static final void airavatStaticReadBarrierInsideSRDebug(int fieldID) {
-    // do nothing: there is no non-debug version of this method
   }
 
   @Entrypoint @Inline @Uninterruptible
@@ -821,21 +718,9 @@ public final class DIFC {
     staticBarrierSlowPath(fieldID, false);
   }
 
-  @Entrypoint @Inline @Uninterruptible
-  public static final void airavatStaticReadBarrierInsideSR(int fieldID) {
-    //staticBarrierSlowPath(fieldID, false);
-    //Reads to statics are allowed since we do not allow writing to statics inside
-    //mapper invocation. Thus statics cannot store per invocation information.
-  }
-
   @Entrypoint @Uninterruptible
   public static final void staticReadBarrierOutsideSRDebug(int fieldID) {
     //profile("DIFC.staticReadBarrierOutsideSR");
-    // do nothing: there is no non-debug version of this method
-  }
-
-  @Entrypoint @Uninterruptible
-  public static final void airavatStaticReadBarrierOutsideSRDebug(int fieldID) {
     // do nothing: there is no non-debug version of this method
   }
 
@@ -848,15 +733,6 @@ public final class DIFC {
     }
   }
   
-  @Entrypoint @Uninterruptible
-  public static final void airavatStaticWriteBarrierDynamicDebug(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatStaticWriteBarrierInsideSRDebug(fieldID);
-    } else {
-      airavatStaticWriteBarrierOutsideSRDebug(fieldID);
-    }
-  }
-  
   @Entrypoint @Inline @Uninterruptible
   public static final void staticWriteBarrierDynamic(int fieldID) {
     if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
@@ -866,25 +742,10 @@ public final class DIFC {
     }
   }
   
-  @Entrypoint @Inline @Uninterruptible
-  public static final void airavatStaticWriteBarrierDynamic(int fieldID) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatStaticWriteBarrierInsideSR(fieldID);
-    } //else {
-      //airavatStaticWriteBarrierOutsideSR(fieldID);
-    //}
-  }
-  
   @Entrypoint @Uninterruptible
   public static final void staticWriteBarrierInsideSRDebug(int fieldID) {
     //profile("DIFC.staticWriteBarrierInsideSR");
     staticWriteBarrierInsideSR(fieldID);
-  }
-
-  @Entrypoint @Uninterruptible
-  public static final void airavatStaticWriteBarrierInsideSRDebug(int fieldID) {
-    // do nothing: there is no non-debug version of this method
-    throwAiravatException("Writes to statics inside the mapper is not allowed");
   }
 
   @Entrypoint @Inline @Uninterruptible
@@ -892,19 +753,8 @@ public final class DIFC {
     staticBarrierSlowPath(fieldID, true);
   }
 
-  @Entrypoint @Inline @Uninterruptible
-  public static final void airavatStaticWriteBarrierInsideSR(int fieldID) {
-    /*we do not allow writes to statics inside the mapper*/
-    throwAiravatException("Writes to statics inside the mapper is not allowed");
-  }
-
   @Entrypoint @Uninterruptible
   public static final void staticWriteBarrierOutsideSRDebug(int fieldID) {
-    // do nothing: there is no non-debug version of this method
-  }
-
-  @Entrypoint @Uninterruptible
-  public static final void airavatStaticWriteBarrierOutsideSRDebug(int fieldID) {
     // do nothing: there is no non-debug version of this method
   }
 
@@ -945,15 +795,6 @@ public final class DIFC {
     }
   }
   
-  @Entrypoint @Uninterruptible
-  public static final void airavatAllocBarrierDynamicDebug(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatAllocBarrierInsideSRDebug(obj);
-    } else {
-      airavatAllocBarrierOutsideSRDebug(obj);
-    }
-  }
-  
   @Entrypoint @Inline @Uninterruptible
   public static final void allocBarrierDynamic(Object obj) {
     if(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion){
@@ -961,13 +802,6 @@ public final class DIFC {
     } else {
       //allocBarrierOutsideSR(obj);
     }
-  }
-  
-  @Entrypoint @Inline @Uninterruptible
-  public static final void airavatAllocBarrierDynamic(Object obj) {
-    if (Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion) {
-      airavatAllocBarrierInsideSR(obj);
-    } 
   }
   
   @Entrypoint @Uninterruptible
@@ -983,21 +817,10 @@ public final class DIFC {
   }
 
   @Entrypoint @Uninterruptible
-  public static final void airavatAllocBarrierOutsideSRDebug(Object obj) {
-    // there is no non-debug version of this method
-  }
-
-  @Entrypoint @Uninterruptible
   public static final void allocBarrierInsideSRDebug(Object obj) {
     //profile("DIFC.allocBarrierInsideSR");
     if (VM.VerifyAssertions) { VM._assert(((GreenThread) Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).getCurrentThread()).inSecureRegion); }
     allocBarrierInsideSR(obj);
-  }
-
-  @Entrypoint @Uninterruptible
-  public static final void airavatAllocBarrierInsideSRDebug(Object obj) {
-    if (VM.VerifyAssertions) { VM._assert(Magic.processorAsGreenProcessor(Processor.getCurrentProcessor()).inMapperRegion); }
-    airavatAllocBarrierInsideSR(obj);
   }
 
   @Entrypoint @Inline @Uninterruptible
@@ -1016,17 +839,6 @@ public final class DIFC {
        */
     } else {
       allocBarrierSlowPath(obj);
-    }
-  }
-
-  @Entrypoint @Inline @Uninterruptible
-  public static final void airavatAllocBarrierInsideSR(Object obj) {
-    // inline this common, cheaper path
-    if (MemoryManager.isLabeled(obj)) {
-      GreenThread currentThread = (GreenThread)GreenProcessor.getCurrentThread();
-      setObjectLabels(obj, currentThread.invocationAllocLabel, LabelSet.EMPTY);
-    } else{
-      VM.sysWriteln("Error: Allocating unlabeled object inside mapper invocation");
     }
   }
 
@@ -1147,118 +959,62 @@ public final class DIFC {
         //if (VM.VerifyAssertions) { VM._assert(VM.runningVM); }
         boolean debugBarriers = VM.VerifyAssertions || /*LabelSet.PROFILE ||*/ VM.difcVerbose;
         
-        if (isAiravat) {
-          
-          if (debugBarriers) {
+	if (debugBarriers) {
             if (dynamicBarriers) {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.airavatReadBarrierDynamicDebugMethod;
-              case WRITE_BARRIER: return Entrypoints.airavatWriteBarrierDynamicDebugMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.airavatStaticReadBarrierDynamicDebugMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.airavatStaticWriteBarrierDynamicDebugMethod;
-              case ALLOC_BARRIER: return Entrypoints.airavatAllocBarrierDynamicDebugMethod;
-              }
+		switch (type) {
+		case READ_BARRIER: return Entrypoints.difcReadBarrierDynamicDebugMethod;
+		case WRITE_BARRIER: return Entrypoints.difcWriteBarrierDynamicDebugMethod;
+		case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierDynamicDebugMethod;
+		case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierDynamicDebugMethod;
+		case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierDynamicDebugMethod;
+		}
             } else if (method.staticallyInSecureRegion) {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.airavatReadBarrierInsideSRDebugMethod;
-              case WRITE_BARRIER: return Entrypoints.airavatWriteBarrierInsideSRDebugMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.airavatStaticReadBarrierInsideSRDebugMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.airavatStaticWriteBarrierInsideSRDebugMethod;
-              case ALLOC_BARRIER: return Entrypoints.airavatAllocBarrierInsideSRDebugMethod;
-              }
+		switch (type) {
+		case READ_BARRIER: return Entrypoints.difcReadBarrierInsideSRDebugMethod;
+		case WRITE_BARRIER: return Entrypoints.difcWriteBarrierInsideSRDebugMethod;
+		case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierInsideSRDebugMethod;
+		case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierInsideSRDebugMethod;
+		case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierInsideSRDebugMethod;
+		}
             } else {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.airavatReadBarrierOutsideSRDebugMethod;
-              case WRITE_BARRIER: return Entrypoints.airavatWriteBarrierOutsideSRDebugMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.airavatStaticReadBarrierOutsideSRDebugMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.airavatStaticWriteBarrierOutsideSRDebugMethod;
-              case ALLOC_BARRIER: return Entrypoints.airavatAllocBarrierOutsideSRDebugMethod;
-              }
+		switch (type) {
+		case READ_BARRIER: return Entrypoints.difcReadBarrierOutsideSRDebugMethod;
+		case WRITE_BARRIER: return Entrypoints.difcWriteBarrierOutsideSRDebugMethod;
+		case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierOutsideSRDebugMethod;
+		case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierOutsideSRDebugMethod;
+		case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierOutsideSRDebugMethod;
+		}
             }
-          } else {
+	} else {
             if (dynamicBarriers) {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.airavatReadBarrierDynamicMethod;
-              case WRITE_BARRIER: return Entrypoints.airavatWriteBarrierDynamicMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.airavatStaticReadBarrierDynamicMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.airavatStaticWriteBarrierDynamicMethod;
-              case ALLOC_BARRIER: return Entrypoints.airavatAllocBarrierDynamicMethod;
-              }
+		switch (type) {
+		case READ_BARRIER: return Entrypoints.difcReadBarrierDynamicMethod;
+		case WRITE_BARRIER: return Entrypoints.difcWriteBarrierDynamicMethod;
+		case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierDynamicMethod;
+		case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierDynamicMethod;
+		case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierDynamicMethod;
+		}
             } else if (method.staticallyInSecureRegion) {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.airavatReadBarrierInsideSRMethod;
-              case WRITE_BARRIER: return Entrypoints.airavatWriteBarrierInsideSRMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.airavatStaticReadBarrierInsideSRMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.airavatStaticWriteBarrierInsideSRMethod;
-              case ALLOC_BARRIER: return Entrypoints.airavatAllocBarrierInsideSRMethod;
-              }
+		switch (type) {
+		case READ_BARRIER: return Entrypoints.difcReadBarrierInsideSRMethod;
+		case WRITE_BARRIER: return Entrypoints.difcWriteBarrierInsideSRMethod;
+		case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierInsideSRMethod;
+		case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierInsideSRMethod;
+		case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierInsideSRMethod;
+		}
             } else {
-              switch (type) {
-              // not used by Airavat
-              }
+		switch (type) {
+		case READ_BARRIER: return Entrypoints.difcReadBarrierOutsideSRMethod;
+		case WRITE_BARRIER: return Entrypoints.difcWriteBarrierOutsideSRMethod;
+		    // these will be null if barrier debugging isn't on
+		    /*
+		      case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierOutsideSRMethod;
+		      case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierOutsideSRMethod;
+		      case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierOutsideSRMethod;
+		    */
+		}
             }
-            
-          }
-          
-        } else {
-
-          if (debugBarriers) {
-            if (dynamicBarriers) {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.difcReadBarrierDynamicDebugMethod;
-              case WRITE_BARRIER: return Entrypoints.difcWriteBarrierDynamicDebugMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierDynamicDebugMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierDynamicDebugMethod;
-              case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierDynamicDebugMethod;
-              }
-            } else if (method.staticallyInSecureRegion) {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.difcReadBarrierInsideSRDebugMethod;
-              case WRITE_BARRIER: return Entrypoints.difcWriteBarrierInsideSRDebugMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierInsideSRDebugMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierInsideSRDebugMethod;
-              case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierInsideSRDebugMethod;
-              }
-            } else {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.difcReadBarrierOutsideSRDebugMethod;
-              case WRITE_BARRIER: return Entrypoints.difcWriteBarrierOutsideSRDebugMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierOutsideSRDebugMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierOutsideSRDebugMethod;
-              case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierOutsideSRDebugMethod;
-              }
-            }
-          } else {
-            if (dynamicBarriers) {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.difcReadBarrierDynamicMethod;
-              case WRITE_BARRIER: return Entrypoints.difcWriteBarrierDynamicMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierDynamicMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierDynamicMethod;
-              case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierDynamicMethod;
-              }
-            } else if (method.staticallyInSecureRegion) {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.difcReadBarrierInsideSRMethod;
-              case WRITE_BARRIER: return Entrypoints.difcWriteBarrierInsideSRMethod;
-              case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierInsideSRMethod;
-              case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierInsideSRMethod;
-              case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierInsideSRMethod;
-              }
-            } else {
-              switch (type) {
-              case READ_BARRIER: return Entrypoints.difcReadBarrierOutsideSRMethod;
-              case WRITE_BARRIER: return Entrypoints.difcWriteBarrierOutsideSRMethod;
-              // these will be null if barrier debugging isn't on
-              /*
-                case STATIC_READ_BARRIER: return Entrypoints.difcStaticReadBarrierOutsideSRMethod;
-                case STATIC_WRITE_BARRIER: return Entrypoints.difcStaticWriteBarrierOutsideSRMethod;
-                case ALLOC_BARRIER: return Entrypoints.difcAllocBarrierOutsideSRMethod;
-               */
-              }
-            }
-          }
-        }
+	}
       }
     }
     return null;
@@ -1574,6 +1330,8 @@ public final class DIFC {
     }
     public static void endMapInvocation(){
     }
+
+
     
     /*Checks if the current mapper invocation can read the variable*/ 
     public static void checkInvocationReadRule(LabelSet invocationSet){
@@ -1585,10 +1343,5 @@ public final class DIFC {
     
     public static long getCurrentInvocationNumber(){
       return 0;
-    }
-    
-    @UninterruptibleNoWarn
-    private static void throwAiravatException(String msg) {
-      throw new AiravatException(msg);
     }
 }
